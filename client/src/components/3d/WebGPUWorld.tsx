@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createRoot, advance } from '@react-three/fiber';
+import { createRoot, advance, extend } from '@react-three/fiber';
+import * as THREE from 'three';
 import { bootEngine } from '../../engine/main';
 import { Engine } from '../../engine/core/Engine';
+
+extend(THREE as any);
 
 export const WebGPUWorld: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const containerRef = useRef<HTMLDivElement>(null);
