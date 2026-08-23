@@ -1,3 +1,6 @@
+// Polyfill Symbol.metadata for @colyseus/schema compatibility
+(Symbol as any).metadata ??= Symbol('metadata');
+
 import { Schema, type } from '@colyseus/schema';
 import { IPlayer, CharacterClass, MAX_PLAYER_HEALTH } from '@fps/shared';
 

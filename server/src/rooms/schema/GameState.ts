@@ -1,3 +1,6 @@
+// Polyfill Symbol.metadata for @colyseus/schema compatibility
+(Symbol as any).metadata ??= Symbol('metadata');
+
 import { Schema, type, MapSchema } from '@colyseus/schema';
 import { PlayerSchema } from './PlayerSchema';
 import { RoomStatus, ThemeType, MAX_PLAYERS_PER_ROOM, DEFAULT_THEME } from '@fps/shared';

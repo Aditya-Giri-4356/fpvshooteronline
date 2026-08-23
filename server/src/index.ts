@@ -1,3 +1,6 @@
+// Polyfill Symbol.metadata for @colyseus/schema compatibility
+(Symbol as any).metadata ??= Symbol('metadata');
+
 import http from 'http';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
