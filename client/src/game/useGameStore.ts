@@ -3,9 +3,7 @@ import {
   IPlayer, 
   RoomStatus, 
   KillFeedItem, 
-  ThemeType, 
   CharacterClass, 
-  DEFAULT_THEME, 
   DEFAULT_CHARACTER, 
   MAX_PLAYER_HEALTH 
 } from '@fps/shared';
@@ -31,7 +29,6 @@ interface GameStoreState {
   ping: number;
 
   // Theme and Character Selection
-  selectedTheme: ThemeType;
   selectedCharacter: CharacterClass;
 
   // Combat State
@@ -53,7 +50,6 @@ interface GameStoreState {
   setRoomCode: (code: string) => void;
   setSessionInfo: (sessionId: string, isHost: boolean, roomCode: string) => void;
   setRoomStatus: (status: RoomStatus) => void;
-  setSelectedTheme: (theme: ThemeType) => void;
   setSelectedCharacter: (character: CharacterClass) => void;
   setPlayers: (players: Record<string, IPlayer>) => void;
   updatePlayer: (sessionId: string, player: IPlayer) => void;
@@ -90,7 +86,6 @@ export const useGameStore = create<GameStoreState>((set) => ({
   ping: 0,
 
   // Theme & Character Defaults
-  selectedTheme: DEFAULT_THEME,
   selectedCharacter: DEFAULT_CHARACTER,
 
   // Combat State Defaults
@@ -112,7 +107,6 @@ export const useGameStore = create<GameStoreState>((set) => ({
   setSessionInfo: (localSessionId, isHost, roomCode) => 
     set({ localSessionId, isHost, roomCode }),
   setRoomStatus: (roomStatus) => set({ roomStatus }),
-  setSelectedTheme: (selectedTheme) => set({ selectedTheme }),
   setSelectedCharacter: (selectedCharacter) => set({ selectedCharacter }),
   setPlayers: (players) => set({ players }),
   updatePlayer: (sessionId, player) =>

@@ -5,16 +5,11 @@ import { LandingScreen } from './components/ui/LandingScreen';
 import { LobbyScreen } from './components/ui/LobbyScreen';
 import { GameHUD } from './components/ui/GameHUD';
 import { ErrorToast } from './components/ui/ErrorToast';
-import { ThemeListener } from './theme/ThemeManager';
-
 export const App: React.FC = () => {
   const screen = useGameStore((state) => state.screen);
 
   return (
     <div className="app-container">
-      {/* Dynamic Theme CSS Variable Updater */}
-      <ThemeListener />
-
       {/* 3D Background & Playable Scene */}
       <GameScene />
 

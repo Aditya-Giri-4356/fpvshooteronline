@@ -1,18 +1,14 @@
 import React, { useRef, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore } from '../../game/useGameStore';
 import { registerCombatCallbacks } from '../../network/colyseusClient';
-import { GameEnvironment } from './Environment';
-import { DistantMountains } from './DistantMountains';
-import { Terrain } from './Terrain';
-import { Foliage } from './Foliage';
-import { Obstacles } from './Obstacles';
 import { PlayerController } from './PlayerController';
 import { RemotePlayer } from './RemotePlayer';
 import { BulletTracers, BulletTracersRef } from './BulletTracers';
 import { FloatingDamageNumbers, FloatingDamageNumbersRef } from './FloatingDamageNumbers';
+import { WebGPUWorld } from './WebGPUWorld';
 
 // Ambient menu camera overlooking the alpine river valley
 const MenuCamera: React.FC = () => {
@@ -64,44 +60,19 @@ export const GameScene: React.FC = () => {
   );
 
   return (
-    <div className="canvas-container">
-      <Canvas
-        shadows
-        camera={{ fov: 75, near: 0.1, far: 600, position: [0, 8, 20] }}
-        gl={{
-          antialias: true,
-          powerPreference: 'high-performance',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.1,
-        }}
-        onClick={() => {
-          if (isPlaying && !document.pointerLockElement) {
-            const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-            // Only request pointer lock on non-touch desktop environments
-            if (!hasTouch) {
-              const canvas = document.querySelector('canvas');
-              if (canvas) canvas.requestPointerLock();
-            }
-          }
-        }}
-      >
-        {/* Dynamic Sunlight, Sky & Alpine Fog */}
-        <GameEnvironment />
-
-        {/* Snowy Alpine Mountain Range Background */}
-        <DistantMountains />
-
+    <div className="canvas-container" onClick={() => {
+      if (isPlaying && !document.pointerLockElement) {
+        const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (!hasTouch) {
+          const canvas = document.querySelector('canvas');
+          if (canvas) canvas.requestPointerLock();
+        }
+      }
+    }}>
+      <WebGPUWorld>
         {/* Rapier 3D Physics Simulation */}
         <Physics gravity={[0, -18, 0]}>
-          {/* Alpine Valley, Riverbed & Sparkling Water */}
-          <Terrain />
-
-          {/* Dense Instanced Pine Forests, Birch Trees, Ferns & Boulders */}
-          <Foliage />
-
-          {/* Wooden River Bridge & Mountain Outpost Cabins */}
-          <Obstacles />
-
+          
           {/* Local First-Person Character */}
           {isPlaying ? (
             <PlayerController
@@ -123,7 +94,7 @@ export const GameScene: React.FC = () => {
           {/* Floating Damage Numbers */}
           <FloatingDamageNumbers ref={damageNumbersRef} />
         </Physics>
-      </Canvas>
+      </WebGPUWorld>
     </div>
   );
 };

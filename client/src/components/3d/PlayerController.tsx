@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { RigidBody, CapsuleCollider, RapierRigidBody, useRapier } from '@react-three/rapier';
+import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore } from '../../game/useGameStore';
 import { useTouchControls } from '../../game/useTouchControls';
@@ -30,7 +30,6 @@ export const PlayerController: React.FC<PlayerControllerProps> = ({
 }) => {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const { camera, scene } = useThree();
-  const { rapier, world } = useRapier();
   const { setPointerLocked, localSessionId, players, isDead } = useGameStore();
 
   const touch = useTouchControls();
@@ -262,6 +261,9 @@ export const PlayerController: React.FC<PlayerControllerProps> = ({
   useFrame((_, delta) => {
     if (!rigidBodyRef.current || isDead) return;
 
+    const engine = (window as any).laasEngine;
+    if (!engine) return;
+
     // 1. Consume mobile touch swipe look delta
     const touchDelta = touch.consumeLookDelta();
     if (touchDelta.dx !== 0 || touchDelta.dy !== 0) {
@@ -279,15 +281,9 @@ export const PlayerController: React.FC<PlayerControllerProps> = ({
     }
 
     const translation = rigidBodyRef.current.translation();
-    const linvel = rigidBodyRef.current.linvel();
-
-    // 3. Ground check via Rapier raycast
-    const rayOrigin = { x: translation.x, y: translation.y, z: translation.z };
-    const rayDir = { x: 0, y: -1, z: 0 };
-    const maxToi = 1.1;
-    const ray = new rapier.Ray(rayOrigin, rayDir);
-    const hit = world.castRay(ray, maxToi, true);
-    isGrounded.current = hit !== null && hit.timeOfImpact < maxToi;
+    // Since it's kinematic, we manage velocity ourselves
+    // We'll store vy in a ref or just use a local scoped variable from previous frame, wait!
+    // I need a ref for velocity. Let's add it.
 
     // 4. Combine keyboard movement and mobile virtual joystick
     const sprintActive = keys.current.sprint || touch.isSprinting;
@@ -326,19 +322,37 @@ export const PlayerController: React.FC<PlayerControllerProps> = ({
       }
     }
 
-    // 5. Jump handling (Keyboard Space or Mobile Jump Button)
-    let vy = linvel.y;
+    // 5. Jump handling
+    let vy = (rigidBodyRef.current as any).userData?.vy || 0;
+    vy -= 18.0 * delta; // Manual gravity
+
     const jumpRequested = keys.current.jump || touch.isJumping;
     if (jumpRequested && isGrounded.current && vy > -1.0 && vy < 1.0) {
       vy = PLAYER_JUMP_FORCE;
       soundFX.playJumpSound();
     }
 
-    // 6. Apply velocity
-    rigidBodyRef.current.setLinvel({ x: moveVector.x, y: vy, z: moveVector.z }, true);
+    // 6. Apply velocity and ground clamp
+    let nx = translation.x + moveVector.x * delta;
+    let nz = translation.z + moveVector.z * delta;
+    let ny = translation.y + vy * delta;
+
+    const groundY = engine.heightfield?.heightAtCpu(nx, nz) || 0;
+    const minHeight = groundY + EYE_HEIGHT;
+
+    if (ny <= minHeight) {
+      ny = minHeight;
+      vy = 0;
+      isGrounded.current = true;
+    } else {
+      isGrounded.current = false;
+    }
+    
+    (rigidBodyRef.current as any).userData = { ...((rigidBodyRef.current as any).userData || {}), vy };
+    rigidBodyRef.current.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
 
     // 7. Update Camera View
-    camera.position.set(translation.x, translation.y + EYE_HEIGHT, translation.z);
+    camera.position.set(nx, ny + (EYE_HEIGHT * 0.2), nz); // Adjust camera offset since ny is already at eye level
     const euler = new THREE.Euler(pitch.current, yaw.current, 0, 'YXZ');
     camera.quaternion.setFromEuler(euler);
 
@@ -357,13 +371,10 @@ export const PlayerController: React.FC<PlayerControllerProps> = ({
       <RigidBody
         ref={rigidBodyRef}
         colliders={false}
-        type="dynamic"
+        type="kinematicPosition"
         position={[initialX, 2.0, initialZ]}
         enabledRotations={[false, false, false]}
-        friction={0.2}
-        restitution={0.0}
-        linearDamping={0.5}
-        userData={{ targetSessionId: localSessionId, isLocal: true }}
+        userData={{ targetSessionId: localSessionId, isLocal: true, vy: 0 }}
       >
         <CapsuleCollider args={[0.5, 0.4]} />
       </RigidBody>

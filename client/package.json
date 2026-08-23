@@ -17,14 +17,15 @@
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "three": "^0.174.0",
+    "three": "^0.184.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
-    "@types/three": "^0.174.0",
+    "@types/three": "^0.184.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "@webgpu/types": "^0.1.60",
     "typescript": "^5.7.3",
     "vite": "^6.2.0"
   }

@@ -6,7 +6,6 @@ import {
   ShootPayload, 
   KillFeedItem, 
   RoomStatus, 
-  ThemeType,
   CharacterClass,
   generateRoomCode,
   RESPAWN_TIME_SECONDS
@@ -148,14 +147,13 @@ class NetworkManager {
     }
   }
 
-  async createRoom(playerName: string, characterClass?: CharacterClass, selectedTheme?: ThemeType): Promise<string> {
+  async createRoom(playerName: string, characterClass?: CharacterClass): Promise<string> {
     const store = useGameStore.getState();
     store.setIsConnecting(true);
     store.setErrorMessage(null);
 
     const generatedCode = generateRoomCode();
     const chosenClass = characterClass || store.selectedCharacter;
-    const chosenTheme = selectedTheme || store.selectedTheme;
 
     try {
       const client = this.getClient();
@@ -163,7 +161,6 @@ class NetworkManager {
         roomCode: generatedCode,
         playerName,
         characterClass: chosenClass,
-        selectedTheme: chosenTheme,
         isHost: true,
       });
 
@@ -235,12 +232,7 @@ class NetworkManager {
     }
   }
 
-  selectTheme(theme: ThemeType) {
-    if (this.room) {
-      this.room.send(NetworkMessages.SELECT_THEME, theme);
-      useGameStore.getState().setSelectedTheme(theme);
-    }
-  }
+
 
   selectCharacter(characterClass: CharacterClass) {
     useGameStore.getState().setSelectedCharacter(characterClass);
@@ -307,9 +299,7 @@ class NetworkManager {
           store.setScreen('PLAYING');
         }
       }
-      if (state.selectedTheme) {
-        store.setSelectedTheme(state.selectedTheme as ThemeType);
-      }
+
       if (state.hostSessionId) {
         const isLocalHost = state.hostSessionId === room.sessionId;
         if (isLocalHost !== store.isHost) {
