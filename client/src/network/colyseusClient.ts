@@ -1,4 +1,4 @@
-import { Client, Room } from 'colyseus.js';
+import { Client, Room } from '@colyseus/sdk';
 import { 
   IPlayer, 
   NetworkMessages, 
@@ -46,7 +46,7 @@ export function getServerUrl(): { httpUrl: string; wsUrl: string } {
   if (!base) {
     base = typeof window !== 'undefined' && window.location.hostname === 'localhost'
       ? 'http://localhost:2567'
-      : 'http://localhost:2567';
+      : 'https://fpvshooteronline.onrender.com';
   }
 
   base = base.replace(/\/$/, '');
@@ -91,15 +91,6 @@ class NetworkManager {
       const { wsUrl } = getServerUrl();
       console.log(`[NetworkManager] Initializing Colyseus Client with WebSocket URL: ${wsUrl}`);
       const client = new Client(wsUrl);
-
-      // Compatibility shim for Colyseus 0.17 matchmaker responses
-      const origConsume = (client as any).consumeSeatReservation.bind(client);
-      (client as any).consumeSeatReservation = function (response: any, previousRoom?: any) {
-        if (response && !response.room && response.name && response.sessionId) {
-          response = { room: response, sessionId: response.sessionId };
-        }
-        return origConsume(response, previousRoom);
-      };
 
       this.client = client;
     }
