@@ -12,9 +12,41 @@ import {
 import { useGameStore } from '../game/useGameStore';
 import { soundFX } from '../audio/SoundFX';
 
-export function getServerUrl(): { httpUrl: string; wsUrl: string } {
+export function getRawServerUrl(): string {
+  if (typeof window !== 'undefined') {
+    const customUrl = localStorage.getItem('FPS_CUSTOM_SERVER_URL');
+    if (customUrl && customUrl.trim()) return customUrl.trim();
+  }
+
   const envUrl = import.meta.env.VITE_SERVER_URL;
-  let base = envUrl || (window.location.hostname === 'localhost' ? 'http://localhost:2567' : window.location.origin);
+  if (envUrl && envUrl.trim()) return envUrl.trim();
+
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:2567';
+  }
+
+  return '';
+}
+
+export function setCustomServerUrl(url: string) {
+  if (typeof window !== 'undefined') {
+    if (!url.trim()) {
+      localStorage.removeItem('FPS_CUSTOM_SERVER_URL');
+    } else {
+      localStorage.setItem('FPS_CUSTOM_SERVER_URL', url.trim());
+    }
+  }
+  networkManager.resetClient();
+}
+
+export function getServerUrl(): { httpUrl: string; wsUrl: string } {
+  let base = getRawServerUrl();
+
+  if (!base) {
+    base = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      ? 'http://localhost:2567'
+      : 'http://localhost:2567';
+  }
 
   base = base.replace(/\/$/, '');
 
@@ -46,6 +78,13 @@ class NetworkManager {
   private pingInterval: any = null;
   private respawnInterval: any = null;
 
+  public resetClient() {
+    this.client = null;
+    if (this.room) {
+      this.leaveRoom();
+    }
+  }
+
   private getClient(): Client {
     if (!this.client) {
       const { wsUrl } = getServerUrl();
@@ -55,11 +94,29 @@ class NetworkManager {
     return this.client;
   }
 
+  /**
+   * Checks server health status.
+   */
+  async checkServerHealth(): Promise<{ online: boolean; latency?: number; message?: string }> {
+    const { httpUrl } = getServerUrl();
+    const start = performance.now();
+    try {
+      const res = await fetch(`${httpUrl}/health`, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const latency = Math.round(performance.now() - start);
+        return { online: true, latency };
+      }
+      return { online: false, message: 'Server returned error.' };
+    } catch (err: any) {
+      return { online: false, message: 'Cannot reach multiplayer server. If on Render free tier, server may be waking up (~30s).' };
+    }
+  }
+
   async validateRoomCode(roomCode: string): Promise<{ valid: boolean; error?: string }> {
     const { httpUrl } = getServerUrl();
     try {
       const cleanCode = roomCode.trim().toUpperCase();
-      const res = await fetch(`${httpUrl}/api/rooms/${cleanCode}`);
+      const res = await fetch(`${httpUrl}/api/rooms/${cleanCode}`, { signal: AbortSignal.timeout(4000) });
       const data = await res.json();
       if (!res.ok || !data.exists) {
         return { valid: false, error: data.error || `Room '${cleanCode}' does not exist.` };
@@ -99,7 +156,11 @@ class NetworkManager {
     } catch (error: any) {
       console.error('[NetworkManager] Failed to create room:', error);
       store.setIsConnecting(false);
-      store.setErrorMessage(error.message || 'Failed to create room. Ensure the server is running.');
+      const rawUrl = getRawServerUrl();
+      const msg = !rawUrl || rawUrl.includes('localhost')
+        ? 'Could not connect to multiplayer server. Please configure your Render server URL in settings below.'
+        : `Could not connect to ${rawUrl}. Render free servers take ~30-50s to wake up on first load.`;
+      store.setErrorMessage(msg);
       throw error;
     }
   }
@@ -164,17 +225,11 @@ class NetworkManager {
     this.room.send(NetworkMessages.PLAYER_MOVE, payload);
   }
 
-  /**
-   * Broadcasts a shot fired by the local player.
-   */
   sendPlayerShoot(payload: ShootPayload) {
     if (!this.room) return;
     this.room.send(NetworkMessages.PLAYER_SHOOT, payload);
   }
 
-  /**
-   * Requests a respawn after elimination.
-   */
   sendRespawn() {
     if (!this.room) return;
     this.room.send(NetworkMessages.PLAYER_RESPAWN);
@@ -200,7 +255,6 @@ class NetworkManager {
   private setupRoomListeners(room: Room<any>) {
     const store = useGameStore.getState();
 
-    // Track player additions
     room.state.players.onAdd((player: any, sessionId: string) => {
       const pData: IPlayer = {
         id: sessionId,
@@ -225,7 +279,6 @@ class NetworkManager {
 
       store.updatePlayer(sessionId, pData);
 
-      // Track individual player state updates
       player.onChange(() => {
         store.updatePlayer(sessionId, {
           id: sessionId,
@@ -250,12 +303,10 @@ class NetworkManager {
       });
     });
 
-    // Track player removals
     room.state.players.onRemove((_player: any, sessionId: string) => {
       store.removePlayer(sessionId);
     });
 
-    // Track room state
     room.state.onChange(() => {
       if (room.state.status) {
         store.setRoomStatus(room.state.status as RoomStatus);
@@ -271,16 +322,12 @@ class NetworkManager {
       }
     });
 
-    // --- Combat Message Listeners ---
-
-    // 1. Remote Player Shot Fired
     room.onMessage(NetworkMessages.PLAYER_SHOOT, (data: ShootPayload & { shooterSessionId: string }) => {
       if (onRemoteShootCallback) {
         onRemoteShootCallback(data);
       }
     });
 
-    // 2. Local Player Hit Confirmation (Hitmarker & Damage Number)
     room.onMessage(NetworkMessages.PLAYER_HIT, (data: { targetSessionId: string; damage: number; isHeadshot: boolean; hitX: number; hitY: number; hitZ: number }) => {
       soundFX.playHitmarkerSound(data.isHeadshot);
       store.triggerHitmarker(data.isHeadshot);
@@ -289,17 +336,14 @@ class NetworkManager {
       }
     });
 
-    // 3. Local Player Took Damage
     room.onMessage(NetworkMessages.DAMAGE_TAKEN, (data: { attackerSessionId: string; attackerName: string; damage: number; newHealth: number }) => {
       soundFX.playHurtSound();
       store.triggerDamageFlash();
       store.setHealth(data.newHealth);
     });
 
-    // 4. Player Elimination / Death
     room.onMessage(NetworkMessages.PLAYER_DIED, (data: { victimSessionId: string; attackerSessionId: string; isHeadshot: boolean }) => {
       if (data.victimSessionId === room.sessionId) {
-        // Local player died
         const attacker = store.players[data.attackerSessionId];
         const attackerName = attacker ? attacker.name : 'Opponent';
 
@@ -320,12 +364,10 @@ class NetworkManager {
           }
         }, 1000);
       } else if (data.attackerSessionId === room.sessionId) {
-        // Local player scored an elimination!
         soundFX.playEliminationSound();
       }
     });
 
-    // 5. Player Respawn
     room.onMessage(NetworkMessages.PLAYER_RESPAWN, (pos: { x: number; y: number; z: number }) => {
       store.setIsDead(false);
       store.setEliminatedBy(null);
@@ -338,12 +380,10 @@ class NetworkManager {
       }
     });
 
-    // 6. Kill Feed Notification
     room.onMessage(NetworkMessages.KILL_FEED, (item: KillFeedItem) => {
       store.addKillFeedItem(item);
     });
 
-    // Match Start
     room.onMessage(NetworkMessages.START_GAME, () => {
       store.setRoomStatus('PLAYING');
       store.setScreen('PLAYING');
@@ -358,7 +398,6 @@ class NetworkManager {
       store.setPing(latency);
     });
 
-    // Ping loop
     if (this.pingInterval) clearInterval(this.pingInterval);
     this.pingInterval = setInterval(() => {
       if (this.room) {
