@@ -19,10 +19,19 @@ const MenuCamera: React.FC = () => {
     const radius = 32;
     const x = Math.sin(angle.current) * radius;
     const z = Math.cos(angle.current) * radius;
-    const y = 9 + Math.sin(angle.current * 0.4) * 2;
+    
+    let baseHeight = 0;
+    let targetHeight = 0;
+    const engine = (window as any).laasEngine;
+    if (engine && engine.heightfield) {
+      baseHeight = engine.heightfield.heightAtCpu(x, z) || 0;
+      targetHeight = engine.heightfield.heightAtCpu(0, 0) || 0;
+    }
+
+    const y = baseHeight + 12 + Math.sin(angle.current * 0.4) * 3;
 
     state.camera.position.set(x, y, z);
-    state.camera.lookAt(0, 1.5, 0);
+    state.camera.lookAt(0, targetHeight + 1.5, 0);
   });
 
   return null;
