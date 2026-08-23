@@ -7,15 +7,13 @@ import {
   Play, 
   LogOut, 
   Zap, 
-  Compass, 
-  Crosshair
+  Crosshair,
+  Mountain
 } from 'lucide-react';
 import { useGameStore } from '../../game/useGameStore';
 import { networkManager } from '../../network/colyseusClient';
 import { 
-  MAP_THEMES, 
   CHARACTER_CLASSES, 
-  ThemeType, 
   CharacterClass 
 } from '@fps/shared';
 import { CharacterPreviewCanvas } from '../3d/CharacterPreviewCanvas';
@@ -26,15 +24,11 @@ export const LobbyScreen: React.FC = () => {
     isHost,
     players,
     localSessionId,
-    selectedTheme,
     selectedCharacter,
   } = useGameStore();
 
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'map' | 'character'>('map');
-
   const playerList = Object.values(players);
-  const currentTheme = MAP_THEMES[selectedTheme] || MAP_THEMES.SCENIC_VALLEY;
   const currentCharacter = CHARACTER_CLASSES[selectedCharacter] || CHARACTER_CLASSES.VANGUARD;
 
   const handleCopyCode = () => {
@@ -42,12 +36,6 @@ export const LobbyScreen: React.FC = () => {
       navigator.clipboard.writeText(roomCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleSelectTheme = (themeId: ThemeType) => {
-    if (isHost) {
-      networkManager.selectTheme(themeId);
     }
   };
 
@@ -77,7 +65,7 @@ export const LobbyScreen: React.FC = () => {
     >
       <div
         style={{
-          maxWidth: '920px',
+          maxWidth: '880px',
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -105,19 +93,22 @@ export const LobbyScreen: React.FC = () => {
                     fontWeight: 800,
                     letterSpacing: '0.15em',
                     color: 'var(--primary)',
-                    background: 'rgba(56, 189, 248, 0.15)',
+                    background: 'rgba(16, 185, 129, 0.15)',
                     padding: '2px 8px',
                     borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}
                 >
-                  LOBBY DECK
+                  <Mountain size={12} /> ALPINE RIVER VALLEY OPEN WORLD
                 </span>
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Map: <strong style={{ color: currentTheme.primaryColor }}>{currentTheme.name}</strong>
+                  Staging Deck
                 </span>
               </div>
               <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.01em' }}>
-                TACTICAL STAGING AREA
+                OPERATIVE PREPARATION
               </h2>
             </div>
 
@@ -143,190 +134,86 @@ export const LobbyScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Center Grid: Map & Character Selection */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
+        {/* Center Grid: Character Selection & 3D Preview */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
           
-          {/* Left Column: Map Selector / Character Selector Tabs */}
-          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            
-            {/* Tab Header */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '8px',
-                background: 'rgba(15, 23, 42, 0.8)',
-                padding: '4px',
-                borderRadius: '10px',
-              }}
-            >
-              <button
-                onClick={() => setActiveTab('map')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '9px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: activeTab === 'map' ? 'var(--primary)' : 'transparent',
-                  color: activeTab === 'map' ? '#090d16' : 'var(--text-muted)',
-                  fontWeight: 800,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Compass size={16} /> MAP THEMES {isHost && '(HOST)'}
-              </button>
-              <button
-                onClick={() => setActiveTab('character')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '9px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: activeTab === 'character' ? 'var(--primary)' : 'transparent',
-                  color: activeTab === 'character' ? '#090d16' : 'var(--text-muted)',
-                  fontWeight: 800,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Crosshair size={16} /> OPERATIVE CLASS
-              </button>
+          {/* Left Column: 4 Operative Classes */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Crosshair size={18} color="var(--primary)" />
+              <span style={{ fontWeight: 800, fontSize: '15px', color: '#ffffff' }}>
+                CHOOSE COMBAT OPERATIVE
+              </span>
             </div>
 
-            {/* TAB 1: 4 MAP THEMES */}
-            {activeTab === 'map' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Select Combat Zone:</span>
-                  {!isHost && <span style={{ color: 'var(--text-dim)' }}>Host selects map</span>}
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+              {(Object.keys(CHARACTER_CLASSES) as CharacterClass[]).map((classKey) => {
+                const c = CHARACTER_CLASSES[classKey];
+                const isSelected = selectedCharacter === classKey;
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  {(Object.keys(MAP_THEMES) as ThemeType[]).map((themeKey) => {
-                    const t = MAP_THEMES[themeKey];
-                    const isSelected = selectedTheme === themeKey;
-
-                    return (
-                      <div
-                        key={themeKey}
-                        onClick={() => handleSelectTheme(themeKey)}
-                        style={{
-                          padding: '14px',
-                          borderRadius: '12px',
-                          background: isSelected ? 'rgba(56, 189, 248, 0.18)' : 'rgba(15, 23, 42, 0.7)',
-                          border: `2px solid ${isSelected ? t.primaryColor : 'rgba(255, 255, 255, 0.08)'}`,
-                          cursor: isHost ? 'pointer' : 'default',
-                          transition: 'all 0.2s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                          boxShadow: isSelected ? `0 0 20px ${t.primaryColor}44` : 'none',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, fontSize: '15px', color: '#ffffff' }}>
-                            {t.name}
-                          </span>
-                          {isSelected && (
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                fontWeight: 800,
-                                background: t.primaryColor,
-                                color: '#090d16',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              ACTIVE
-                            </span>
-                          )}
-                        </div>
-
-                        <span style={{ fontSize: '11px', color: t.primaryColor, fontWeight: 700 }}>
-                          {t.subtitle}
+                return (
+                  <div
+                    key={classKey}
+                    onClick={() => handleSelectCharacter(classKey)}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      background: isSelected ? 'rgba(16, 185, 129, 0.18)' : 'rgba(15, 23, 42, 0.7)',
+                      border: `2px solid ${isSelected ? c.accentColor : 'rgba(255, 255, 255, 0.08)'}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: isSelected ? `0 0 16px ${c.accentColor}33` : 'none',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                        <span style={{ fontWeight: 800, fontSize: '15px', color: '#ffffff' }}>
+                          {c.name}
                         </span>
-
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.3 }}>
-                          {t.description}
-                        </p>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: c.accentColor, background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {c.role}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {c.description}
+                      </p>
+                    </div>
 
-            {/* TAB 2: 4 CHARACTER CLASSES */}
-            {activeTab === 'character' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Choose Your Combat Operative:
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {(Object.keys(CHARACTER_CLASSES) as CharacterClass[]).map((classKey) => {
-                    const c = CHARACTER_CLASSES[classKey];
-                    const isSelected = selectedCharacter === classKey;
-
-                    return (
-                      <div
-                        key={classKey}
-                        onClick={() => handleSelectCharacter(classKey)}
+                    {isSelected && (
+                      <span
                         style={{
-                          padding: '12px',
-                          borderRadius: '10px',
-                          background: isSelected ? 'rgba(56, 189, 248, 0.18)' : 'rgba(15, 23, 42, 0.7)',
-                          border: `2px solid ${isSelected ? c.accentColor : 'rgba(255, 255, 255, 0.08)'}`,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '4px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          background: c.accentColor,
+                          color: '#090d16',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, fontSize: '14px', color: '#ffffff' }}>
-                            {c.name}
-                          </span>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: c.accentColor }}>
-                            {c.role}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {c.description}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Right Column: 3D Character Preview & Stats */}
+          {/* Right Column: 3D Live Operative Preview & Stats */}
           <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
-                OPERATIVE PREVIEW
+              <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff' }}>
+                3D OPERATIVE PREVIEW
               </span>
               <span style={{ fontSize: '12px', fontWeight: 800, color: currentCharacter.accentColor }}>
-                {currentCharacter.name} ({currentCharacter.role})
+                {currentCharacter.name}
               </span>
             </div>
 
-            {/* 3D Rotating Canvas */}
+            {/* 3D Rotating Character Canvas */}
             <CharacterPreviewCanvas characterClass={selectedCharacter} />
 
             {/* Stat Bars */}
@@ -368,11 +255,10 @@ export const LobbyScreen: React.FC = () => {
 
         {/* Bottom Section: Player Roster & Launch Button */}
         <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '14px' }}>
               <Users size={18} color="var(--primary)" />
-              <span>ROSTER ({playerList.length}/8 PLAYERS)</span>
+              <span>STAGING ROSTER ({playerList.length}/8 PLAYERS)</span>
             </div>
 
             {isHost ? (
@@ -381,7 +267,7 @@ export const LobbyScreen: React.FC = () => {
                 className="btn btn-success"
                 style={{ padding: '14px 32px', fontSize: '15px' }}
               >
-                <Play size={18} /> START GAME MATCH
+                <Play size={18} /> DEPLOY INTO MATCH
               </button>
             ) : (
               <div
@@ -391,15 +277,15 @@ export const LobbyScreen: React.FC = () => {
                   gap: '8px',
                   padding: '10px 18px',
                   borderRadius: '8px',
-                  background: 'rgba(56, 189, 248, 0.1)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                   color: 'var(--primary)',
                   fontSize: '13px',
                   fontWeight: 700,
                   animation: 'pulse-subtle 2s infinite',
                 }}
               >
-                <Zap size={16} /> WAITING FOR HOST TO LAUNCH...
+                <Zap size={16} /> WAITING FOR HOST TO DEPLOY...
               </div>
             )}
           </div>
@@ -419,8 +305,8 @@ export const LobbyScreen: React.FC = () => {
                     justifyContent: 'space-between',
                     padding: '10px 14px',
                     borderRadius: '10px',
-                    background: isYou ? 'rgba(56, 189, 248, 0.15)' : 'rgba(15, 23, 42, 0.6)',
-                    border: `1px solid ${isYou ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.06)'}`,
+                    background: isYou ? 'rgba(16, 185, 129, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                    border: `1px solid ${isYou ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255,255,255,0.06)'}`,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

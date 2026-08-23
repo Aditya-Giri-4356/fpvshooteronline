@@ -5,26 +5,28 @@ import * as THREE from 'three';
 import { useGameStore } from '../../game/useGameStore';
 import { registerCombatCallbacks } from '../../network/colyseusClient';
 import { GameEnvironment } from './Environment';
+import { DistantMountains } from './DistantMountains';
 import { Terrain } from './Terrain';
+import { Foliage } from './Foliage';
 import { Obstacles } from './Obstacles';
 import { PlayerController } from './PlayerController';
 import { RemotePlayer } from './RemotePlayer';
 import { BulletTracers, BulletTracersRef } from './BulletTracers';
 import { FloatingDamageNumbers, FloatingDamageNumbersRef } from './FloatingDamageNumbers';
 
-// Ambient menu camera rotation
+// Ambient menu camera overlooking the alpine river valley
 const MenuCamera: React.FC = () => {
-  const angle = useRef(0);
+  const angle = useRef(0.4);
 
   useFrame((state, delta) => {
-    angle.current += delta * 0.12;
-    const radius = 24;
+    angle.current += delta * 0.08;
+    const radius = 32;
     const x = Math.sin(angle.current) * radius;
     const z = Math.cos(angle.current) * radius;
-    const y = 8 + Math.sin(angle.current * 0.5) * 2;
+    const y = 9 + Math.sin(angle.current * 0.4) * 2;
 
     state.camera.position.set(x, y, z);
-    state.camera.lookAt(0, 2, 0);
+    state.camera.lookAt(0, 1.5, 0);
   });
 
   return null;
@@ -65,12 +67,12 @@ export const GameScene: React.FC = () => {
     <div className="canvas-container">
       <Canvas
         shadows
-        camera={{ fov: 75, near: 0.1, far: 500, position: [0, 8, 20] }}
+        camera={{ fov: 75, near: 0.1, far: 600, position: [0, 8, 20] }}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
+          toneMappingExposure: 1.1,
         }}
         onClick={() => {
           if (isPlaying && !document.pointerLockElement) {
@@ -83,15 +85,21 @@ export const GameScene: React.FC = () => {
           }
         }}
       >
-        {/* Atmospheric Lighting & Sky */}
+        {/* Dynamic Sunlight, Sky & Alpine Fog */}
         <GameEnvironment />
+
+        {/* Snowy Alpine Mountain Range Background */}
+        <DistantMountains />
 
         {/* Rapier 3D Physics Simulation */}
         <Physics gravity={[0, -18, 0]}>
-          {/* Stylized Rolling Terrain, Road & Pine Trees */}
+          {/* Alpine Valley, Riverbed & Sparkling Water */}
           <Terrain />
 
-          {/* Modular Obstacles & Cover Elements */}
+          {/* Dense Instanced Pine Forests, Birch Trees, Ferns & Boulders */}
+          <Foliage />
+
+          {/* Wooden River Bridge & Mountain Outpost Cabins */}
           <Obstacles />
 
           {/* Local First-Person Character */}
