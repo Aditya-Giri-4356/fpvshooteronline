@@ -18,6 +18,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Lightweight ping endpoint for keep-alive bots & client pre-warming
+app.get('/ping', (_req: Request, res: Response) => {
+  res.status(200).send('pong');
+});
+
 // Health check endpoint (essential for Render / container health checks)
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
@@ -112,6 +117,22 @@ httpServer.listen(PORT, () => {
   console.log(`  🩺 Health Check: http://localhost:${PORT}/health`);
   console.log(`  🎮 Room Handler: 'game_room' (filterBy: roomCode)`);
   console.log(`=================================================\n`);
+
+  // Automatic Self-Ping / Keep-Alive Heartbeat (Prevents Free-Tier Sleep on Render)
+  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL;
+  if (externalUrl) {
+    const keepAliveUrl = `${externalUrl.replace(/\/$/, '')}/ping`;
+    console.log(`[KeepAlive] Initiating self-ping loop targeting ${keepAliveUrl} every 8 minutes.`);
+    
+    setInterval(async () => {
+      try {
+        const res = await fetch(keepAliveUrl);
+        console.log(`[KeepAlive] Self-ping status: ${res.status} (${new Date().toLocaleTimeString()})`);
+      } catch (err: any) {
+        console.warn(`[KeepAlive] Self-ping notice:`, err.message);
+      }
+    }, 8 * 60 * 1000); // Every 8 minutes (Render sleeps at 15 mins)
+  }
 });
 
 // Graceful shutdown handling

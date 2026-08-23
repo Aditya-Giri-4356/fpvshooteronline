@@ -95,20 +95,28 @@ class NetworkManager {
   }
 
   /**
-   * Checks server health status.
+   * Checks server health status and warms up connections.
    */
   async checkServerHealth(): Promise<{ online: boolean; latency?: number; message?: string }> {
     const { httpUrl } = getServerUrl();
     const start = performance.now();
     try {
-      const res = await fetch(`${httpUrl}/health`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(`${httpUrl}/ping`, { signal: AbortSignal.timeout(4000) });
       if (res.ok) {
         const latency = Math.round(performance.now() - start);
         return { online: true, latency };
       }
       return { online: false, message: 'Server returned error.' };
     } catch (err: any) {
-      return { online: false, message: 'Cannot reach multiplayer server. If on Render free tier, server may be waking up (~30s).' };
+      // Fallback check on /health
+      try {
+        const res = await fetch(`${httpUrl}/health`, { signal: AbortSignal.timeout(4000) });
+        if (res.ok) {
+          const latency = Math.round(performance.now() - start);
+          return { online: true, latency };
+        }
+      } catch {}
+      return { online: false, message: 'Cannot reach multiplayer server. Render free tier takes ~30s to wake up if idle.' };
     }
   }
 
