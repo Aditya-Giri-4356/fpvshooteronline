@@ -6,6 +6,46 @@ Built as a standalone web application using **React 19, TypeScript, Vite, Three.
 
 ---
 
+## ⚡ Deployment Architecture (Netlify + Render)
+
+For maximum performance, zero cost, and instant loading:
+1. **Frontend (3D Game Client)** ➔ Hosted on **Netlify** (Global CDN, 100% Free, SSL, never sleeps).
+2. **Backend (Multiplayer WebSocket Server)** ➔ Hosted on **Render** (Free WebSockets support with `/health` checks).
+
+---
+
+## 🚀 How to Deploy Frontend to Netlify (1-Click Setup)
+
+1. Go to [app.netlify.com](https://app.netlify.com/) and log in.
+2. Click **Add new site** -> **Import an existing project**.
+3. Select **GitHub** and authorize your repository: `Aditya-Giri-4356/fpvshooteronline`.
+4. Netlify will automatically detect [`netlify.toml`](./netlify.toml) with the correct build settings:
+   - **Build Command**: `npm --prefix shared install && npm --prefix shared run build && npm --prefix client install && npm --prefix client run build`
+   - **Publish Directory**: `client/dist`
+5. **Environment Variable**:
+   - Go to **Site Configuration** -> **Environment Variables** -> **Add a variable**:
+     - Key: `VITE_SERVER_URL`
+     - Value: `https://<your-render-backend-name>.onrender.com` *(or `http://localhost:2567` for local testing)*
+6. Click **Deploy Site** — Netlify builds and hosts your game at `https://<your-site-name>.netlify.app`!
+
+---
+
+## ☁️ How to Deploy Backend to Render (Free WebSocket Server)
+
+1. On [Render Dashboard](https://dashboard.render.com/), click **New +** -> **Web Service**.
+2. Connect `Aditya-Giri-4356/fpvshooteronline`.
+3. Configure settings:
+   - **Environment**: `Node`
+   - **Build Command**: `npm --prefix shared install && npm --prefix shared run build && npm --prefix server install && npm --prefix server run build`
+   - **Start Command**: `npm --prefix server run start`
+   - **Health Check Path**: `/health`
+4. Add Environment Variables:
+   - `NODE_ENV`: `production`
+   - `CORS_ORIGIN`: `*`
+5. Copy your Render server URL (e.g. `https://fps-multiplayer-server.onrender.com`) and paste it as `VITE_SERVER_URL` in Netlify.
+
+---
+
 ## 🎮 Mobile & Desktop Controls
 
 The game is built with **Mobile-First Priority (Landscape View)** while preserving full **Desktop / Laptop** controls.
@@ -43,59 +83,13 @@ The game is built with **Mobile-First Priority (Landscape View)** while preservi
 
 ---
 
-## 🌲 Scenic Environment (Slow Roads Aesthetic)
-
-- **Atmospheric Sky & Lighting**: Procedural sky dome with soft sunlight, directional shadows, and atmospheric horizon fog.
-- **Rolling Hills & Road**: Procedural elevation landscape with a curved asphalt road crossing the terrain.
-- **Vegetation**: Low-poly procedural pine trees and shrub clusters scattered across the hills.
-- **Tactical Cover**: Shipping containers, concrete roadblocks, and rock boulders with Rapier rigid body physics.
-
----
-
 ## 🚀 Running Locally
-
-### 1. Single-Command Startup
-Install dependencies and run both multiplayer server and client concurrently:
 
 ```bash
 npm run install:all
 npm run dev
 ```
 
-This starts:
-- **Multiplayer Backend**: `http://localhost:2567` (WebSocket on `ws://localhost:2567`)
+Starts:
+- **Multiplayer Backend**: `http://localhost:2567`
 - **Frontend Client**: `http://localhost:5173`
-
----
-
-## 👥 Multiplayer Testing with Two Browsers / Mobile Devices
-
-1. Start dev server (`npm run dev`).
-2. **Browser 1 (Host)**:
-   - Go to `http://localhost:5173/`.
-   - Enter display name (e.g. `Viper`) and click **CREATE ROOM**.
-   - Copy the 6-character room code (e.g. `AB7K9X`).
-3. **Browser 2 (Guest / Mobile)**:
-   - Open `http://localhost:5173/` on another window, incognito tab, or mobile device on the same local network (`http://<your-lan-ip>:5173`).
-   - Click **JOIN ROOM**, enter a display name (e.g. `Shadow`), paste the code (`AB7K9X`), and click **JOIN ROOM**.
-4. **Lobby & Match Start**:
-   - Both players appear in the lobby roster in real-time.
-   - Host clicks **START GAME MATCH** -> Both players enter the 3D world simultaneously.
-5. **Real-Time Combat**:
-   - Shoot at each other, see laser tracer beams, muzzle flashes, floating damage numbers, hitmarker sounds, elimination feed, and respawns!
-
----
-
-## ☁️ Deploying Backend to Render
-
-1. On [Render](https://dashboard.render.com/), create a new **Web Service** connected to this repository.
-2. Settings:
-   - **Environment**: `Node`
-   - **Build Command**: `npm run build:server`
-   - **Start Command**: `npm run start:server`
-   - **Health Check Path**: `/health`
-3. Environment Variables:
-   - `PORT`: `10000` (Render handles this automatically)
-   - `NODE_ENV`: `production`
-   - `CORS_ORIGIN`: `*`
-4. On your frontend host (Vercel / Netlify / Render Static Site), set `VITE_SERVER_URL=https://your-server.onrender.com`.
