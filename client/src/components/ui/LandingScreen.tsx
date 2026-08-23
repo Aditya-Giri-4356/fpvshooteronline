@@ -368,12 +368,55 @@ export const LandingScreen: React.FC = () => {
                   className="input-field"
                   value={serverUrlInput}
                   onChange={(e) => setServerUrlInput(e.target.value)}
-                  placeholder="https://your-server.onrender.com"
+                  placeholder="https://fpvshooteronline.onrender.com"
                   autoFocus
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              {/* Quick Select Server Presets */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.05em' }}>
+                  QUICK PRESETS:
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setServerUrlInput('https://fpvshooteronline.onrender.com')}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      borderRadius: '6px',
+                      color: 'var(--primary)',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    ☁️ Render Cloud
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setServerUrlInput('http://localhost:2567')}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      borderRadius: '6px',
+                      color: '#10b981',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    ⚡ Localhost (0ms)
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                   <Check size={16} /> Save & Connect
                 </button>
