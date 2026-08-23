@@ -1,0 +1,37 @@
+# Render Blueprint Specification for 1-Click Deployment
+# https://render.com/docs/blueprint-spec
+
+services:
+  # 1. Backend Multiplayer Server (Node.js + Colyseus WebSockets)
+  - type: web
+    name: fps-multiplayer-server
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm --prefix shared install && npm --prefix shared run build && npm --prefix server install && npm --prefix server run build
+    startCommand: npm --prefix server run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        value: "*"
+
+  # 2. Frontend 3D Game Client (Vite + React 19 + Three.js)
+  - type: web
+    name: fps-game-client
+    runtime: static
+    plan: free
+    region: oregon
+    buildCommand: npm --prefix shared install && npm --prefix shared run build && npm --prefix client install && npm --prefix client run build
+    staticPublishPath: ./client/dist
+    envVars:
+      - key: VITE_SERVER_URL
+        fromService:
+          type: web
+          name: fps-multiplayer-server
+          property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
