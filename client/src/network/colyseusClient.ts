@@ -91,7 +91,18 @@ class NetworkManager {
     if (!this.client) {
       const { wsUrl } = getServerUrl();
       console.log(`[NetworkManager] Initializing Colyseus Client with WebSocket URL: ${wsUrl}`);
-      this.client = new Client(wsUrl);
+      const client = new Client(wsUrl);
+
+      // Compatibility shim for Colyseus 0.17 matchmaker responses
+      const origConsume = (client as any).consumeSeatReservation.bind(client);
+      (client as any).consumeSeatReservation = function (response: any, previousRoom?: any) {
+        if (response && !response.room && response.name && response.sessionId) {
+          response = { room: response, sessionId: response.sessionId };
+        }
+        return origConsume(response, previousRoom);
+      };
+
+      this.client = client;
     }
     return this.client;
   }
