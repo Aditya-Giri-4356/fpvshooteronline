@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { IPlayer, RoomStatus, KillFeedItem, MAX_PLAYER_HEALTH } from '@fps/shared';
+import { 
+  IPlayer, 
+  RoomStatus, 
+  KillFeedItem, 
+  ThemeType, 
+  CharacterClass, 
+  DEFAULT_THEME, 
+  DEFAULT_CHARACTER, 
+  MAX_PLAYER_HEALTH 
+} from '@fps/shared';
 
 export type AppScreen = 'LANDING' | 'LOBBY' | 'PLAYING';
 
@@ -21,6 +30,10 @@ interface GameStoreState {
   isConnecting: boolean;
   ping: number;
 
+  // Theme and Character Selection
+  selectedTheme: ThemeType;
+  selectedCharacter: CharacterClass;
+
   // Combat State
   health: number;
   maxHealth: number;
@@ -40,6 +53,8 @@ interface GameStoreState {
   setRoomCode: (code: string) => void;
   setSessionInfo: (sessionId: string, isHost: boolean, roomCode: string) => void;
   setRoomStatus: (status: RoomStatus) => void;
+  setSelectedTheme: (theme: ThemeType) => void;
+  setSelectedCharacter: (character: CharacterClass) => void;
   setPlayers: (players: Record<string, IPlayer>) => void;
   updatePlayer: (sessionId: string, player: IPlayer) => void;
   removePlayer: (sessionId: string) => void;
@@ -74,6 +89,10 @@ export const useGameStore = create<GameStoreState>((set) => ({
   isConnecting: false,
   ping: 0,
 
+  // Theme & Character Defaults
+  selectedTheme: DEFAULT_THEME,
+  selectedCharacter: DEFAULT_CHARACTER,
+
   // Combat State Defaults
   health: MAX_PLAYER_HEALTH,
   maxHealth: MAX_PLAYER_HEALTH,
@@ -93,11 +112,12 @@ export const useGameStore = create<GameStoreState>((set) => ({
   setSessionInfo: (localSessionId, isHost, roomCode) => 
     set({ localSessionId, isHost, roomCode }),
   setRoomStatus: (roomStatus) => set({ roomStatus }),
+  setSelectedTheme: (selectedTheme) => set({ selectedTheme }),
+  setSelectedCharacter: (selectedCharacter) => set({ selectedCharacter }),
   setPlayers: (players) => set({ players }),
   updatePlayer: (sessionId, player) =>
     set((state) => {
       const nextPlayers = { ...state.players, [sessionId]: player };
-      // Sync local player stats
       if (sessionId === state.localSessionId) {
         return {
           players: nextPlayers,

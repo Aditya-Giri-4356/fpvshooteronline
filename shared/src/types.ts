@@ -4,11 +4,16 @@
 
 export type RoomStatus = 'LOBBY' | 'STARTING' | 'PLAYING' | 'ENDED';
 
+export type ThemeType = 'DESERT_OUTPOST' | 'CYBER_METROPOLIS' | 'SCENIC_VALLEY' | 'INDUSTRIAL_DOCKS';
+
+export type CharacterClass = 'VANGUARD' | 'PHANTOM' | 'JUGGERNAUT' | 'SPECTRE';
+
 export interface IPlayer {
   id: string;              // Client session ID
   name: string;            // Ephemeral player display name
   isHost: boolean;         // Host of the room
   ready: boolean;          // Ready status in lobby
+  characterClass: CharacterClass; // Operative class selection
   x: number;               // 3D X position
   y: number;               // 3D Y position
   z: number;               // 3D Z position
@@ -32,6 +37,7 @@ export interface IRoomState {
   maxPlayers: number;
   players: Record<string, IPlayer>;
   mapName: string;
+  selectedTheme: ThemeType;
   createdAt: number;
 }
 
@@ -77,16 +83,21 @@ export interface KillFeedItem {
 export interface JoinRoomOptions {
   roomCode?: string;
   playerName: string;
+  characterClass?: CharacterClass;
   isHost?: boolean;
 }
 
 export interface CreateRoomOptions {
   playerName: string;
+  characterClass?: CharacterClass;
+  selectedTheme?: ThemeType;
 }
 
 // Server to Client Message Names
 export enum NetworkMessages {
   START_GAME = 'START_GAME',
+  SELECT_THEME = 'SELECT_THEME',
+  SELECT_CHARACTER = 'SELECT_CHARACTER',
   PLAYER_MOVE = 'PLAYER_MOVE',
   PLAYER_SHOOT = 'PLAYER_SHOOT',
   PLAYER_HIT = 'PLAYER_HIT',
@@ -106,5 +117,6 @@ export interface ValidateRoomResponse {
   playerCount?: number;
   maxPlayers?: number;
   status?: RoomStatus;
+  selectedTheme?: ThemeType;
   error?: string;
 }

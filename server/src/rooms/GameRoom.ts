@@ -7,6 +7,8 @@ import {
   MovePayload, 
   ShootPayload,
   KillFeedItem,
+  ThemeType,
+  CharacterClass,
   MAX_PLAYERS_PER_ROOM, 
   MAX_NAME_LENGTH, 
   DEFAULT_PLAYER_NAME,
@@ -14,6 +16,10 @@ import {
   WEAPON_BODY_DAMAGE,
   WEAPON_HEADSHOT_DAMAGE,
   SPAWN_SHIELD_DURATION_MS,
+  DEFAULT_THEME,
+  DEFAULT_CHARACTER,
+  MAP_THEMES,
+  CHARACTER_CLASSES,
   NetworkMessages 
 } from '@fps/shared';
 
@@ -33,16 +39,43 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
   maxClients = MAX_PLAYERS_PER_ROOM;
   autoDispose = true;
 
-  onCreate(options: JoinRoomOptions) {
+  onCreate(options: JoinRoomOptions & { selectedTheme?: ThemeType }) {
     let roomCode = options && options.roomCode ? options.roomCode.trim().toUpperCase() : '';
     if (!roomCode) {
       roomCode = generateUniqueRoomCode();
     }
 
-    this.setState(new GameState(roomCode));
+    const initialTheme = options?.selectedTheme && MAP_THEMES[options.selectedTheme]
+      ? options.selectedTheme
+      : DEFAULT_THEME;
+
+    this.setState(new GameState(roomCode, initialTheme));
+    this.state.mapName = MAP_THEMES[initialTheme]?.name || 'Scenic Valley';
     this.setMetadata({ roomCode });
 
-    console.log(`[GameRoom] Room created with code: ${roomCode} (Room ID: ${this.roomId})`);
+    console.log(`[GameRoom] Room created with code: ${roomCode} [Theme: ${initialTheme}] (Room ID: ${this.roomId})`);
+
+    // Handle Theme Selection (Host Only)
+    this.onMessage(NetworkMessages.SELECT_THEME, (client, newTheme: ThemeType) => {
+      if (client.sessionId !== this.state.hostSessionId) {
+        client.send(NetworkMessages.ROOM_ERROR, { message: 'Only the room host can change the map theme.' });
+        return;
+      }
+      if (MAP_THEMES[newTheme]) {
+        this.state.selectedTheme = newTheme;
+        this.state.mapName = MAP_THEMES[newTheme].name;
+        console.log(`[GameRoom] Host changed map theme to '${newTheme}' in room ${this.state.roomCode}`);
+      }
+    });
+
+    // Handle Character Class Selection
+    this.onMessage(NetworkMessages.SELECT_CHARACTER, (client, characterClass: CharacterClass) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player && CHARACTER_CLASSES[characterClass]) {
+        player.characterClass = characterClass;
+        console.log(`[GameRoom] Player '${player.name}' selected operative class '${characterClass}'`);
+      }
+    });
 
     // Handle "START_GAME" from the Host
     this.onMessage(NetworkMessages.START_GAME, (client) => {
@@ -54,7 +87,7 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
 
       if (this.state.status !== 'LOBBY') return;
 
-      console.log(`[GameRoom] Host started match for room ${this.state.roomCode}`);
+      console.log(`[GameRoom] Host started match for room ${this.state.roomCode} [Map: ${this.state.selectedTheme}]`);
       this.state.status = 'PLAYING';
 
       // Grant spawn shield on match start
@@ -171,7 +204,6 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
-      // Pick random spawn point
       const spawnIndex = Math.floor(Math.random() * SPAWN_POINTS.length);
       const spawn = SPAWN_POINTS[spawnIndex];
 
@@ -182,7 +214,6 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
       player.y = 1.0;
       player.z = spawn.z + (Math.random() * 2 - 1);
 
-      // Remove shield after duration
       this.clock.setTimeout(() => {
         player.isShielded = false;
       }, SPAWN_SHIELD_DURATION_MS);
@@ -213,6 +244,10 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
       this.state.hostSessionId = client.sessionId;
     }
 
+    const initialClass = options?.characterClass && CHARACTER_CLASSES[options.characterClass]
+      ? options.characterClass
+      : DEFAULT_CHARACTER;
+
     const playerCount = this.state.players.size;
     const spawnIndex = playerCount % SPAWN_POINTS.length;
     const spawnPos = SPAWN_POINTS[spawnIndex];
@@ -221,10 +256,10 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
       client.sessionId,
       cleanName,
       isHost,
-      playerCount % 8
+      playerCount % 8,
+      initialClass
     );
 
-    // Initial spawn coordinates
     player.x = spawnPos.x;
     player.y = 1.0;
     player.z = spawnPos.z;
@@ -239,7 +274,7 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
 
     this.state.players.set(client.sessionId, player);
 
-    console.log(`[GameRoom] Player '${cleanName}' (${client.sessionId}) joined room ${this.state.roomCode} [Host: ${isHost}]`);
+    console.log(`[GameRoom] Player '${cleanName}' [Class: ${initialClass}] joined room ${this.state.roomCode} [Host: ${isHost}]`);
   }
 
   onLeave(client: Client, code?: number) {
@@ -250,7 +285,6 @@ export class GameRoom extends Room<{ state: GameState; metadata: { roomCode: str
     this.state.players.delete(client.sessionId);
     console.log(`[GameRoom] Player '${playerName}' left room ${this.state.roomCode} (code: ${code}). Remaining: ${this.state.players.size}`);
 
-    // Migrate host if needed
     if (wasHost && this.state.players.size > 0) {
       const nextHostSessionId = this.state.players.keys().next().value;
       if (nextHostSessionId) {

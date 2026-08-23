@@ -1,48 +1,42 @@
 # HYPERSHOT 3D - Multiplayer FPS
 
-A high-performance, browser-based 3D multiplayer first-person shooter inspired by the fast, arcade-style gameplay feel of *Roblox Hypershot* combined with the scenic, atmospheric procedural visual feeling of *Slow Roads*.
+A high-performance, browser-based 3D multiplayer first-person shooter inspired by the fast, arcade-style gameplay feel of *Roblox Hypershot* combined with the scenic, atmospheric procedural visual feeling of *Slow Roads* and CC0 environmental building kits.
 
 Built as a standalone web application using **React 19, TypeScript, Vite, Three.js, React Three Fiber, Rapier 3D Physics, Node.js, and Colyseus WebSockets**.
 
 ---
 
-## ⚡ Deployment Architecture (Netlify + Render)
+## 🗺️ 4 Playable Environment / Map Themes
 
-For maximum performance, zero cost, and instant loading:
-1. **Frontend (3D Game Client)** ➔ Hosted on **Netlify** (Global CDN, 100% Free, SSL, never sleeps).
-2. **Backend (Multiplayer WebSocket Server)** ➔ Hosted on **Render** (Free WebSockets support with `/health` checks).
+Host can select the active map zone in the lobby, which dynamically updates lighting, skybox, heightmap terrain, obstacles, and the entire glassmorphic UI color scheme:
 
----
-
-## 🚀 How to Deploy Frontend to Netlify (1-Click Setup)
-
-1. Go to [app.netlify.com](https://app.netlify.com/) and log in.
-2. Click **Add new site** -> **Import an existing project**.
-3. Select **GitHub** and authorize your repository: `Aditya-Giri-4356/fpvshooteronline`.
-4. Netlify will automatically detect [`netlify.toml`](./netlify.toml) with the correct build settings:
-   - **Build Command**: `npm --prefix shared install && npm --prefix shared run build && npm --prefix client install && npm --prefix client run build`
-   - **Publish Directory**: `client/dist`
-5. **Environment Variable**:
-   - Go to **Site Configuration** -> **Environment Variables** -> **Add a variable**:
-     - Key: `VITE_SERVER_URL`
-     - Value: `https://<your-render-backend-name>.onrender.com` *(or `http://localhost:2567` for local testing)*
-6. Click **Deploy Site** — Netlify builds and hosts your game at `https://<your-site-name>.netlify.app`!
+1. **Desert Outpost** *(Military Sandstone Stronghold)*:
+   - Arid sandstone canyons, watchtowers with sniper perches, fortified sandbag bunkers, and warm golden dust haze.
+   - UI Accent: Warm Amber & Gold (`#f59e0b`).
+2. **Cyber Metropolis** *(Neo-Tokyo Urban Highway)*:
+   - Overcast neon city skyline with multi-lane asphalt highway, illuminated skyscraper facades, holographic road barriers, and ambient purple-cyan lighting.
+   - UI Accent: Neon Cyan & Magenta (`#06b6d4`).
+3. **Scenic Valley** *(Alpine Mountain Highway — Slow Roads Style)*:
+   - Rolling green alpine hills, lush pine forests, curved scenic road with guardrails, and mountain dawn skybox.
+   - UI Accent: Emerald Green (`#10b981`).
+4. **Industrial Docks** *(Cargo Port Container Yard)*:
+   - Stormy shipping harbor with towering modular cargo containers (Blue, Red, Orange, Green), crane gantries, and fuel tanks.
+   - UI Accent: Crimson Rose & Industrial Steel (`#f43f5e`).
 
 ---
 
-## ☁️ How to Deploy Backend to Render (Free WebSocket Server)
+## 👤 4 Operative Character Classes with 3D Preview
 
-1. On [Render Dashboard](https://dashboard.render.com/), click **New +** -> **Web Service**.
-2. Connect `Aditya-Giri-4356/fpvshooteronline`.
-3. Configure settings:
-   - **Environment**: `Node`
-   - **Build Command**: `npm --prefix shared install && npm --prefix shared run build && npm --prefix server install && npm --prefix server run build`
-   - **Start Command**: `npm --prefix server run start`
-   - **Health Check Path**: `/health`
-4. Add Environment Variables:
-   - `NODE_ENV`: `production`
-   - `CORS_ORIGIN`: `*`
-5. Copy your Render server URL (e.g. `https://fps-multiplayer-server.onrender.com`) and paste it as `VITE_SERVER_URL` in Netlify.
+Players can customize their combat operative in the lobby with a live rotating 3D preview:
+
+1. **Vanguard (Tactical Assault)**:
+   - Balanced frontline combatant with cobalt-blue tactical helmet, reinforced shoulder armor, and high versatility.
+2. **Phantom (Cyber Scout)**:
+   - Lightweight stealth operative with aerodynamic carbon weave, ultra-agile strafing speed, and emerald-green optics.
+3. **Juggernaut (Heavy Enforcer)**:
+   - Imposing titanium exoskeleton with wide shoulder plating, heavy blast helmet, and glowing crimson forcefield shielding.
+4. **Spectre (Cyber Infiltrator)**:
+   - Futuristic cybernetic infiltrator with precision targeting sensors and amber holographic energy nodes.
 
 ---
 
@@ -83,13 +77,7 @@ The game is built with **Mobile-First Priority (Landscape View)** while preservi
 
 ---
 
-## 🚀 Running Locally
+## ⚡ Deployment & Hosting (Netlify + Render)
 
-```bash
-npm run install:all
-npm run dev
-```
-
-Starts:
-- **Multiplayer Backend**: `http://localhost:2567`
-- **Frontend Client**: `http://localhost:5173`
+- **Frontend (3D Game Client)** ➔ Hosted on **Netlify** (Global CDN, 100% Free, SSL, never sleeps).
+- **Backend (Multiplayer WebSocket Server)** ➔ Hosted on **Render** (Free WebSockets support with 24/7 self-ping keep-alive loop).

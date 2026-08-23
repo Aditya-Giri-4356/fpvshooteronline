@@ -1,187 +1,264 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { RigidBody } from '@react-three/rapier';
-
-// Terrain elevation function: creates gentle rolling hills with flat central spawn
-function getTerrainHeight(x: number, z: number): number {
-  const distFromCenter = Math.sqrt(x * x + z * z);
-  const spawnFlatten = Math.min(1.0, Math.max(0.0, (distFromCenter - 15) / 25));
-
-  const hill1 = Math.sin(x * 0.04) * Math.cos(z * 0.04) * 3.5;
-  const hill2 = Math.sin(x * 0.08 + 1.2) * Math.cos(z * 0.07 + 0.8) * 1.8;
-  const hill3 = Math.sin(x * 0.02) * 2.0;
-
-  return (hill1 + hill2 + hill3) * spawnFlatten;
-}
-
-// Stylized Low-Poly Pine Tree
-const PineTree: React.FC<{ position: [number, number, number]; scale?: number }> = ({
-  position,
-  scale = 1.0,
-}) => {
-  return (
-    <RigidBody type="fixed" colliders="hull" position={position}>
-      <group scale={[scale, scale, scale]}>
-        {/* Trunk */}
-        <mesh position={[0, 1.2, 0]} castShadow>
-          <cylinderGeometry args={[0.2, 0.35, 2.4, 6]} />
-          <meshStandardMaterial color="#451a03" roughness={0.9} />
-        </mesh>
-        {/* Tier 1 Foliage Cone */}
-        <mesh position={[0, 2.8, 0]} castShadow receiveShadow>
-          <coneGeometry args={[1.8, 2.2, 7]} />
-          <meshStandardMaterial color="#14532d" roughness={0.7} flatShading />
-        </mesh>
-        {/* Tier 2 Foliage Cone */}
-        <mesh position={[0, 4.2, 0]} castShadow receiveShadow>
-          <coneGeometry args={[1.4, 1.9, 7]} />
-          <meshStandardMaterial color="#166534" roughness={0.7} flatShading />
-        </mesh>
-        {/* Tier 3 Foliage Cone */}
-        <mesh position={[0, 5.3, 0]} castShadow receiveShadow>
-          <coneGeometry args={[0.9, 1.6, 7]} />
-          <meshStandardMaterial color="#15803d" roughness={0.7} flatShading />
-        </mesh>
-      </group>
-    </RigidBody>
-  );
-};
+import { useGameStore } from '../../game/useGameStore';
+import { MAP_THEMES } from '@fps/shared';
 
 export const Terrain: React.FC = () => {
-  // Generate procedural terrain geometry with vertex colors
-  const terrainGeometry = useMemo(() => {
-    const size = 240;
-    const segments = 120;
+  const selectedTheme = useGameStore((state) => state.selectedTheme);
+  const theme = MAP_THEMES[selectedTheme] || MAP_THEMES.SCENIC_VALLEY;
+
+  const size = 180;
+  const segments = 60;
+
+  // Generate theme-tailored procedural heightmap
+  const { geometry } = useMemo(() => {
     const geo = new THREE.PlaneGeometry(size, size, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
     const pos = geo.attributes.position;
-    const colors: number[] = [];
-
-    const grassLow = new THREE.Color('#1e3a29');   // Deep meadow green
-    const grassMid = new THREE.Color('#2d5a3c');   // Mid grass green
-    const grassHigh = new THREE.Color('#417a50');  // Highlight green
-    const pathDirt = new THREE.Color('#334155');   // Slate soil
+    const verts: number[] = [];
 
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
-      const y = getTerrainHeight(x, z);
-      pos.setY(i, y);
 
-      const distFromCenter = Math.sqrt(x * x + z * z);
-      let col = grassMid.clone();
+      let y = 0;
 
-      if (distFromCenter < 12) {
-        col.lerp(pathDirt, 0.4);
-      } else if (y > 2.5) {
-        col.lerp(grassHigh, (y - 2.5) / 4);
-      } else if (y < -1.0) {
-        col.lerp(grassLow, (-y - 1.0) / 3);
+      if (selectedTheme === 'DESERT_OUTPOST') {
+        // Sand dunes with gentle rolling ridges
+        const dune1 = Math.sin(x * 0.04 + z * 0.02) * 2.2;
+        const dune2 = Math.cos(z * 0.05) * Math.sin(x * 0.03) * 1.5;
+        // Flatten center compound
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        const centerFlatten = Math.min(1.0, distFromCenter / 25);
+        y = (dune1 + dune2) * centerFlatten;
+      } else if (selectedTheme === 'CYBER_METROPOLIS') {
+        // Flat urban plaza with highway ramp
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        if (Math.abs(x) < 8 && z > 20) {
+          // Highway ramp
+          y = Math.min(4.5, (z - 20) * 0.15);
+        } else if (distFromCenter > 50) {
+          y = Math.sin(x * 0.05) * 1.0;
+        } else {
+          y = 0;
+        }
+      } else if (selectedTheme === 'INDUSTRIAL_DOCKS') {
+        // Concrete harbor apron with container dock elevation
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        if (distFromCenter > 45) {
+          y = Math.sin(z * 0.04) * 1.2;
+        } else {
+          y = 0;
+        }
+      } else {
+        // SCENIC_VALLEY: Slow Roads rolling hills
+        const distFromRoad = Math.abs(x - Math.sin(z * 0.04) * 8);
+        const roadFlatten = Math.min(1.0, distFromRoad / 7);
+        const hill1 = Math.sin(x * 0.035) * Math.cos(z * 0.035) * 4.5;
+        const hill2 = Math.sin(x * 0.08 + z * 0.06) * 1.8;
+        y = (hill1 + hill2) * roadFlatten;
       }
 
-      colors.push(col.r, col.g, col.b);
+      pos.setY(i, y);
+      verts.push(x, y, z);
     }
 
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geo.computeVertexNormals();
-    return geo;
-  }, []);
+    return { geometry: geo, vertices: verts };
+  }, [selectedTheme]);
 
-  // Curved road path geometry winding across the landscape
-  const roadGeometry = useMemo(() => {
-    const points: THREE.Vector3[] = [];
-    const numPoints = 80;
-    const length = 200;
+  // Procedural Foliage / Decor tailored to theme
+  const foliageItems = useMemo(() => {
+    const items: Array<{ x: number; y: number; z: number; scale: number; type: string; color: string }> = [];
+    const count = selectedTheme === 'CYBER_METROPOLIS' ? 12 : selectedTheme === 'INDUSTRIAL_DOCKS' ? 8 : 45;
 
-    for (let i = 0; i <= numPoints; i++) {
-      const t = (i / numPoints) * length - length / 2;
-      const x = t;
-      const z = Math.sin(t * 0.03) * 35;
-      const y = getTerrainHeight(x, z) + 0.08;
-      points.push(new THREE.Vector3(x, y, z));
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.3);
+      const radius = 18 + Math.random() * 55;
+      const x = Math.sin(angle) * radius;
+      const z = Math.cos(angle) * radius;
+
+      // Keep center clearing open
+      if (Math.abs(x) < 14 && Math.abs(z) < 14) continue;
+
+      let y = 0;
+      if (selectedTheme === 'DESERT_OUTPOST') {
+        y = (Math.sin(x * 0.04 + z * 0.02) * 2.2) * Math.min(1.0, radius / 25);
+        items.push({
+          x,
+          y,
+          z,
+          scale: 0.8 + Math.random() * 0.6,
+          type: i % 2 === 0 ? 'palm' : 'cactus',
+          color: i % 2 === 0 ? '#4d7c0f' : '#3f6212',
+        });
+      } else if (selectedTheme === 'CYBER_METROPOLIS') {
+        items.push({
+          x,
+          y: 0,
+          z,
+          scale: 1.0 + Math.random() * 0.5,
+          type: 'neonPillar',
+          color: i % 2 === 0 ? '#06b6d4' : '#ec4899',
+        });
+      } else if (selectedTheme === 'INDUSTRIAL_DOCKS') {
+        items.push({
+          x,
+          y: 0,
+          z,
+          scale: 1.0,
+          type: 'lightPost',
+          color: '#f59e0b',
+        });
+      } else {
+        // Scenic Valley pine trees
+        const distFromRoad = Math.abs(x - Math.sin(z * 0.04) * 8);
+        const roadFlatten = Math.min(1.0, distFromRoad / 7);
+        y = (Math.sin(x * 0.035) * Math.cos(z * 0.035) * 4.5) * roadFlatten;
+
+        items.push({
+          x,
+          y,
+          z,
+          scale: 0.8 + Math.random() * 0.7,
+          type: 'pine',
+          color: i % 3 === 0 ? '#1b4332' : i % 3 === 1 ? '#2d6a4f' : '#40916c',
+        });
+      }
     }
-
-    const curve = new THREE.CatmullRomCurve3(points);
-    const shape = new THREE.Shape();
-    const roadWidth = 5.5;
-    shape.moveTo(-roadWidth / 2, 0);
-    shape.lineTo(roadWidth / 2, 0);
-    shape.lineTo(roadWidth / 2, 0.05);
-    shape.lineTo(-roadWidth / 2, 0.05);
-    shape.closePath();
-
-    return new THREE.ExtrudeGeometry(shape, {
-      steps: 120,
-      bevelEnabled: false,
-      extrudePath: curve,
-    });
-  }, []);
-
-  // Procedural tree locations placed around hills and road edges
-  const treePositions = useMemo(() => {
-    const trees: { pos: [number, number, number]; scale: number }[] = [];
-    const seed = [
-      [-35, -20], [-45, 10], [-25, -35], [-30, 40],
-      [35, 25], [45, -15], [30, -38], [40, 45],
-      [-55, -45], [55, 35], [-20, 50], [20, -50],
-      [-40, -60], [45, 60], [-60, 20], [60, -25],
-      [-15, -40], [15, 42], [-50, 45], [50, -45]
-    ];
-
-    seed.forEach(([x, z], idx) => {
-      const y = getTerrainHeight(x, z);
-      const scale = 0.8 + (idx % 5) * 0.15;
-      trees.push({ pos: [x, y, z], scale });
-    });
-
-    return trees;
-  }, []);
+    return items;
+  }, [selectedTheme]);
 
   return (
     <group>
-      {/* 1. Main Rolling Terrain with Rapier Physics Collider */}
-      <RigidBody type="fixed" colliders="trimesh">
-        <mesh geometry={terrainGeometry} receiveShadow>
+      {/* Ground Physical Terrain */}
+      <RigidBody type="fixed" colliders="trimesh" friction={0.7} restitution={0.0}>
+        <mesh geometry={geometry} receiveShadow>
           <meshStandardMaterial
-            vertexColors
-            roughness={0.85}
-            metalness={0.1}
-            flatShading={false}
+            color={theme.groundColor}
+            roughness={selectedTheme === 'CYBER_METROPOLIS' ? 0.4 : 0.85}
+            metalness={selectedTheme === 'CYBER_METROPOLIS' ? 0.25 : 0.05}
+            flatShading={selectedTheme !== 'CYBER_METROPOLIS'}
           />
         </mesh>
       </RigidBody>
 
-      {/* 2. Scenic Winding Road */}
-      <mesh geometry={roadGeometry} receiveShadow castShadow>
-        <meshStandardMaterial
-          color="#1e293b"
-          roughness={0.7}
-          metalness={0.2}
-        />
-      </mesh>
-
-      {/* 3. Spawn Platform Pad */}
-      <RigidBody type="fixed" colliders="cuboid" position={[0, 0.1, 0]}>
-        <mesh receiveShadow>
-          <cylinderGeometry args={[10, 10.5, 0.2, 32]} />
-          <meshStandardMaterial
-            color="#0f172a"
-            roughness={0.4}
-            metalness={0.6}
-          />
+      {/* Center Road / Plaza Surface */}
+      {selectedTheme === 'SCENIC_VALLEY' && (
+        <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <planeGeometry args={[7, 160, 2, 40]} />
+          <meshStandardMaterial color={theme.roadColor} roughness={0.7} />
         </mesh>
-        {/* Neon glowing center ring */}
-        <mesh position={[0, 0.12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[7.5, 7.8, 32]} />
-          <meshBasicMaterial color="#38bdf8" />
-        </mesh>
-      </RigidBody>
+      )}
 
-      {/* 4. Atmospheric Scenic Pine Trees */}
-      {treePositions.map((tree, index) => (
-        <PineTree key={index} position={tree.pos} scale={tree.scale} />
-      ))}
+      {selectedTheme === 'DESERT_OUTPOST' && (
+        <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <planeGeometry args={[8, 140, 2, 30]} />
+          <meshStandardMaterial color={theme.roadColor} roughness={0.9} />
+        </mesh>
+      )}
+
+      {selectedTheme === 'CYBER_METROPOLIS' && (
+        <group>
+          {/* Main Neon Highway */}
+          <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <planeGeometry args={[14, 160, 2, 40]} />
+            <meshStandardMaterial color="#0b0f19" roughness={0.3} metalness={0.4} />
+          </mesh>
+          {/* Neon Highway Center Dividers */}
+          <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.35, 150]} />
+            <meshBasicMaterial color="#06b6d4" />
+          </mesh>
+          {/* Neon Highway Border Lines */}
+          <mesh position={[-6.8, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.25, 150]} />
+            <meshBasicMaterial color="#ec4899" />
+          </mesh>
+          <mesh position={[6.8, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.25, 150]} />
+            <meshBasicMaterial color="#ec4899" />
+          </mesh>
+        </group>
+      )}
+
+      {/* Themed Foliage & Environmental Elements */}
+      {foliageItems.map((item, idx) => {
+        if (item.type === 'pine') {
+          return (
+            <group key={idx} position={[item.x, item.y, item.z]} scale={[item.scale, item.scale, item.scale]}>
+              {/* Trunk */}
+              <mesh position={[0, 1, 0]} castShadow>
+                <cylinderGeometry args={[0.25, 0.35, 2, 6]} />
+                <meshStandardMaterial color="#582f0e" roughness={0.9} />
+              </mesh>
+              {/* Foliage Cones */}
+              <mesh position={[0, 2.5, 0]} castShadow>
+                <coneGeometry args={[1.8, 2.2, 7]} />
+                <meshStandardMaterial color={item.color} roughness={0.8} />
+              </mesh>
+              <mesh position={[0, 3.8, 0]} castShadow>
+                <coneGeometry args={[1.4, 1.8, 7]} />
+                <meshStandardMaterial color={item.color} roughness={0.8} />
+              </mesh>
+              <mesh position={[0, 4.8, 0]} castShadow>
+                <coneGeometry args={[0.9, 1.4, 7]} />
+                <meshStandardMaterial color={item.color} roughness={0.8} />
+              </mesh>
+            </group>
+          );
+        }
+
+        if (item.type === 'palm') {
+          return (
+            <group key={idx} position={[item.x, item.y, item.z]} scale={[item.scale, item.scale, item.scale]}>
+              <mesh position={[0, 2.5, 0]} castShadow>
+                <cylinderGeometry args={[0.2, 0.35, 5, 6]} />
+                <meshStandardMaterial color="#854d0e" roughness={0.9} />
+              </mesh>
+              <mesh position={[0, 5.0, 0]} castShadow>
+                <sphereGeometry args={[1.6, 6, 4]} />
+                <meshStandardMaterial color={item.color} roughness={0.8} />
+              </mesh>
+            </group>
+          );
+        }
+
+        if (item.type === 'neonPillar') {
+          return (
+            <group key={idx} position={[item.x, item.y, item.z]} scale={[item.scale, item.scale, item.scale]}>
+              <mesh position={[0, 4, 0]} castShadow>
+                <boxGeometry args={[0.6, 8, 0.6]} />
+                <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.2} />
+              </mesh>
+              <mesh position={[0, 4, 0]}>
+                <boxGeometry args={[0.2, 7.6, 0.65]} />
+                <meshBasicMaterial color={item.color} />
+              </mesh>
+            </group>
+          );
+        }
+
+        if (item.type === 'lightPost') {
+          return (
+            <group key={idx} position={[item.x, item.y, item.z]}>
+              <mesh position={[0, 3, 0]} castShadow>
+                <cylinderGeometry args={[0.15, 0.2, 6, 6]} />
+                <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.3} />
+              </mesh>
+              <mesh position={[0, 6, 0]}>
+                <sphereGeometry args={[0.4, 8, 8]} />
+                <meshBasicMaterial color="#f59e0b" />
+              </mesh>
+              <pointLight position={[0, 5.8, 0]} color="#f59e0b" intensity={2.0} distance={15} decay={2} />
+            </group>
+          );
+        }
+
+        return null;
+      })}
     </group>
   );
 };

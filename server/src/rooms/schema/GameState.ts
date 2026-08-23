@@ -1,6 +1,6 @@
 import { Schema, type, MapSchema } from '@colyseus/schema';
 import { PlayerSchema } from './PlayerSchema';
-import { RoomStatus, MAX_PLAYERS_PER_ROOM } from '@fps/shared';
+import { RoomStatus, ThemeType, MAX_PLAYERS_PER_ROOM, DEFAULT_THEME } from '@fps/shared';
 
 export class GameState extends Schema {
   @type('string')
@@ -12,11 +12,14 @@ export class GameState extends Schema {
   @type('string')
   status: RoomStatus = 'LOBBY';
 
+  @type('string')
+  selectedTheme: ThemeType = DEFAULT_THEME;
+
   @type('number')
   maxPlayers: number = MAX_PLAYERS_PER_ROOM;
 
   @type('string')
-  mapName: string = 'StylizedOutpost';
+  mapName: string = 'Scenic Valley';
 
   @type('number')
   createdAt: number = Date.now();
@@ -24,9 +27,10 @@ export class GameState extends Schema {
   @type({ map: PlayerSchema })
   players = new MapSchema<PlayerSchema>();
 
-  constructor(roomCode: string = '') {
+  constructor(roomCode: string = '', selectedTheme: ThemeType = DEFAULT_THEME) {
     super();
     this.roomCode = roomCode;
+    this.selectedTheme = selectedTheme;
     this.createdAt = Date.now();
   }
 }

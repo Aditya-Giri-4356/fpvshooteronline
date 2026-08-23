@@ -3,17 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { IPlayer } from '@fps/shared';
-
-const PLAYER_COLORS = [
-  '#38bdf8', // Sky Blue
-  '#f43f5e', // Rose
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#a855f7', // Purple
-  '#06b6d4', // Cyan
-  '#ec4899', // Pink
-  '#84cc16', // Lime
-];
+import { CharacterModel } from './CharacterModel';
 
 interface RemotePlayerProps {
   player: IPlayer;
@@ -37,14 +27,11 @@ export const RemotePlayer: React.FC<RemotePlayerProps> = ({ player }) => {
     }
   }, [player.lastShotTime]);
 
-  // Update target coordinates
   targetPos.current.set(player.x, player.y, player.z);
   targetYaw.current = player.rotY || 0;
 
-  const playerColor = PLAYER_COLORS[player.colorIndex % PLAYER_COLORS.length] || '#38bdf8';
   const healthPercent = Math.max(0, Math.min(1.0, (player.health || 100) / 100));
 
-  // Smooth interpolation loop
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
@@ -55,11 +42,9 @@ export const RemotePlayer: React.FC<RemotePlayerProps> = ({ player }) => {
       groupRef.current.visible = true;
     }
 
-    // Smooth position interpolation (LERP)
     const lerpFactor = Math.min(1.0, delta * 15);
     groupRef.current.position.lerp(targetPos.current, lerpFactor);
 
-    // Smooth yaw rotation interpolation
     const currentRotY = groupRef.current.rotation.y;
     groupRef.current.rotation.y = THREE.MathUtils.lerp(currentRotY, targetYaw.current, lerpFactor);
   });
@@ -68,76 +53,16 @@ export const RemotePlayer: React.FC<RemotePlayerProps> = ({ player }) => {
 
   return (
     <group ref={groupRef} position={[player.x, player.y, player.z]}>
-      
-      {/* 1. Character Torso/Body (Hitbox Target) */}
-      <mesh
-        position={[0, 0, 0]}
-        castShadow
-        receiveShadow
-        userData={{ targetSessionId: player.id, isHeadshot: false }}
-      >
-        <capsuleGeometry args={[0.38, 0.9, 8, 16]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.6} />
-      </mesh>
+      {/* 3D Themed Character Operative Model */}
+      <CharacterModel
+        characterClass={player.characterClass || 'VANGUARD'}
+        isShielded={player.isShielded}
+        showMuzzleFlash={showMuzzleFlash}
+        targetSessionId={player.id}
+        isHitboxEnabled={true}
+      />
 
-      {/* 2. Character Head Hitbox */}
-      <mesh
-        position={[0, 0.75, 0]}
-        userData={{ targetSessionId: player.id, isHeadshot: true }}
-      >
-        <sphereGeometry args={[0.32, 12, 12]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.3} />
-      </mesh>
-
-      {/* 3. Glowing Tactical Visor */}
-      <mesh position={[0, 0.75, 0.22]}>
-        <boxGeometry args={[0.32, 0.1, 0.12]} />
-        <meshStandardMaterial
-          color={playerColor}
-          emissive={playerColor}
-          emissiveIntensity={0.9}
-          roughness={0.1}
-        />
-      </mesh>
-
-      {/* 4. Tactical Armor / Backpack */}
-      <mesh position={[0, 0.05, -0.26]} castShadow>
-        <boxGeometry args={[0.42, 0.55, 0.2]} />
-        <meshStandardMaterial color={playerColor} roughness={0.5} metalness={0.3} />
-      </mesh>
-
-      {/* 5. Remote Weapon Model */}
-      <group position={[0.35, -0.05, 0.35]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.06, 0.08, 0.35]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.8} />
-        </mesh>
-        <mesh position={[0, 0.02, 0.08]}>
-          <boxGeometry args={[0.02, 0.02, 0.2]} />
-          <meshStandardMaterial color={playerColor} emissive={playerColor} emissiveIntensity={1} />
-        </mesh>
-
-        {/* Remote Muzzle Flash */}
-        {showMuzzleFlash && (
-          <group position={[0, 0, 0.25]}>
-            <pointLight color="#38bdf8" intensity={4} distance={6} />
-            <mesh>
-              <dodecahedronGeometry args={[0.12, 0]} />
-              <meshBasicMaterial color="#bae6fd" />
-            </mesh>
-          </group>
-        )}
-      </group>
-
-      {/* 6. Invulnerability Spawn Shield Sphere */}
-      {player.isShielded && (
-        <mesh position={[0, 0.3, 0]}>
-          <sphereGeometry args={[0.9, 16, 16]} />
-          <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} wireframe />
-        </mesh>
-      )}
-
-      {/* 7. Floating 3D Billboard Nameplate & Health Bar */}
+      {/* Floating 3D Billboard Nameplate & Health Bar */}
       <Billboard position={[0, 1.45, 0]}>
         {/* Host Crown Icon */}
         {player.isHost && (

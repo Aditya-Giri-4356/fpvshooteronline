@@ -1,5 +1,5 @@
 import { Schema, type } from '@colyseus/schema';
-import { IPlayer, MAX_PLAYER_HEALTH } from '@fps/shared';
+import { IPlayer, CharacterClass, MAX_PLAYER_HEALTH } from '@fps/shared';
 
 export class PlayerSchema extends Schema implements IPlayer {
   @type('string')
@@ -13,6 +13,9 @@ export class PlayerSchema extends Schema implements IPlayer {
 
   @type('boolean')
   ready: boolean = true;
+
+  @type('string')
+  characterClass: CharacterClass = 'VANGUARD';
 
   @type('number')
   x: number = 0;
@@ -56,12 +59,19 @@ export class PlayerSchema extends Schema implements IPlayer {
   @type('number')
   lastShotTime: number = 0;
 
-  constructor(id: string = '', name: string = 'Operator', isHost: boolean = false, colorIndex: number = 0) {
+  constructor(
+    id: string = '',
+    name: string = 'Operator',
+    isHost: boolean = false,
+    colorIndex: number = 0,
+    characterClass: CharacterClass = 'VANGUARD'
+  ) {
     super();
     this.id = id;
     this.name = name;
     this.isHost = isHost;
     this.colorIndex = colorIndex;
+    this.characterClass = characterClass;
     this.health = MAX_PLAYER_HEALTH;
     this.maxHealth = MAX_PLAYER_HEALTH;
     this.kills = 0;

@@ -6,6 +6,8 @@ import {
   ShootPayload, 
   KillFeedItem, 
   RoomStatus, 
+  ThemeType,
+  CharacterClass,
   generateRoomCode,
   RESPAWN_TIME_SECONDS
 } from '@fps/shared';
@@ -108,7 +110,6 @@ class NetworkManager {
       }
       return { online: false, message: 'Server returned error.' };
     } catch (err: any) {
-      // Fallback check on /health
       try {
         const res = await fetch(`${httpUrl}/health`, { signal: AbortSignal.timeout(4000) });
         if (res.ok) {
@@ -136,18 +137,22 @@ class NetworkManager {
     }
   }
 
-  async createRoom(playerName: string): Promise<string> {
+  async createRoom(playerName: string, characterClass?: CharacterClass, selectedTheme?: ThemeType): Promise<string> {
     const store = useGameStore.getState();
     store.setIsConnecting(true);
     store.setErrorMessage(null);
 
     const generatedCode = generateRoomCode();
+    const chosenClass = characterClass || store.selectedCharacter;
+    const chosenTheme = selectedTheme || store.selectedTheme;
 
     try {
       const client = this.getClient();
       const room = await client.create('game_room', {
         roomCode: generatedCode,
         playerName,
+        characterClass: chosenClass,
+        selectedTheme: chosenTheme,
         isHost: true,
       });
 
@@ -173,9 +178,10 @@ class NetworkManager {
     }
   }
 
-  async joinRoom(roomCode: string, playerName: string): Promise<void> {
+  async joinRoom(roomCode: string, playerName: string, characterClass?: CharacterClass): Promise<void> {
     const store = useGameStore.getState();
     const cleanCode = roomCode.trim().toUpperCase();
+    const chosenClass = characterClass || store.selectedCharacter;
 
     store.setIsConnecting(true);
     store.setErrorMessage(null);
@@ -192,6 +198,7 @@ class NetworkManager {
       const room = await client.join('game_room', {
         roomCode: cleanCode,
         playerName,
+        characterClass: chosenClass,
         isHost: false,
       });
 
@@ -212,6 +219,20 @@ class NetworkManager {
         : error.message || `Could not join room '${cleanCode}'.`;
       store.setErrorMessage(msg);
       throw error;
+    }
+  }
+
+  selectTheme(theme: ThemeType) {
+    if (this.room) {
+      this.room.send(NetworkMessages.SELECT_THEME, theme);
+      useGameStore.getState().setSelectedTheme(theme);
+    }
+  }
+
+  selectCharacter(characterClass: CharacterClass) {
+    useGameStore.getState().setSelectedCharacter(characterClass);
+    if (this.room) {
+      this.room.send(NetworkMessages.SELECT_CHARACTER, characterClass);
     }
   }
 
@@ -269,6 +290,7 @@ class NetworkManager {
         name: player.name,
         isHost: player.isHost,
         ready: player.ready,
+        characterClass: player.characterClass || 'VANGUARD',
         x: player.x,
         y: player.y,
         z: player.z,
@@ -293,6 +315,7 @@ class NetworkManager {
           name: player.name,
           isHost: player.isHost,
           ready: player.ready,
+          characterClass: player.characterClass || 'VANGUARD',
           x: player.x,
           y: player.y,
           z: player.z,
@@ -321,6 +344,9 @@ class NetworkManager {
         if (room.state.status === 'PLAYING' && store.screen !== 'PLAYING') {
           store.setScreen('PLAYING');
         }
+      }
+      if (room.state.selectedTheme) {
+        store.setSelectedTheme(room.state.selectedTheme as ThemeType);
       }
       if (room.state.hostSessionId) {
         const isLocalHost = room.state.hostSessionId === room.sessionId;
