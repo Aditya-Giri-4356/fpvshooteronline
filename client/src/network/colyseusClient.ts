@@ -181,8 +181,10 @@ class NetworkManager {
       console.error('[NetworkManager] Failed to create room:', error);
       store.setIsConnecting(false);
       const rawUrl = getRawServerUrl();
-      const msg = !rawUrl || rawUrl.includes('localhost')
-        ? 'Could not connect to multiplayer server. Please configure your Render server URL in settings below.'
+      const msg = error.message && !error.message.includes('fetch')
+        ? `Could not create room: ${error.message}`
+        : !rawUrl || rawUrl.includes('localhost')
+        ? 'Could not connect to multiplayer server. Please configure your Render server URL in settings.'
         : `Could not connect to ${rawUrl}. Render free servers take ~30-50s to wake up on first load.`;
       store.setErrorMessage(msg);
       throw error;
@@ -295,75 +297,81 @@ class NetworkManager {
   private setupRoomListeners(room: Room<any>) {
     const store = useGameStore.getState();
 
-    room.state.players.onAdd((player: any, sessionId: string) => {
-      const pData: IPlayer = {
-        id: sessionId,
-        name: player.name,
-        isHost: player.isHost,
-        ready: player.ready,
-        characterClass: player.characterClass || 'VANGUARD',
-        x: player.x,
-        y: player.y,
-        z: player.z,
-        rotX: player.rotX,
-        rotY: player.rotY,
-        colorIndex: player.colorIndex,
-        ping: player.ping,
-        health: player.health ?? 100,
-        maxHealth: player.maxHealth ?? 100,
-        kills: player.kills ?? 0,
-        deaths: player.deaths ?? 0,
-        isDead: player.isDead ?? false,
-        isShielded: player.isShielded ?? false,
-        lastShotTime: player.lastShotTime ?? 0,
-      };
+    // Robust onStateChange handler that safely extracts room state without throwing undefined errors
+    room.onStateChange((state: any) => {
+      if (!state) return;
 
-      store.updatePlayer(sessionId, pData);
-
-      player.onChange(() => {
-        store.updatePlayer(sessionId, {
-          id: sessionId,
-          name: player.name,
-          isHost: player.isHost,
-          ready: player.ready,
-          characterClass: player.characterClass || 'VANGUARD',
-          x: player.x,
-          y: player.y,
-          z: player.z,
-          rotX: player.rotX,
-          rotY: player.rotY,
-          colorIndex: player.colorIndex,
-          ping: player.ping,
-          health: player.health,
-          maxHealth: player.maxHealth,
-          kills: player.kills,
-          deaths: player.deaths,
-          isDead: player.isDead,
-          isShielded: player.isShielded,
-          lastShotTime: player.lastShotTime,
-        });
-      });
-    });
-
-    room.state.players.onRemove((_player: any, sessionId: string) => {
-      store.removePlayer(sessionId);
-    });
-
-    room.state.onChange(() => {
-      if (room.state.status) {
-        store.setRoomStatus(room.state.status as RoomStatus);
-        if (room.state.status === 'PLAYING' && store.screen !== 'PLAYING') {
+      if (state.status) {
+        store.setRoomStatus(state.status as RoomStatus);
+        if (state.status === 'PLAYING' && store.screen !== 'PLAYING') {
           store.setScreen('PLAYING');
         }
       }
-      if (room.state.selectedTheme) {
-        store.setSelectedTheme(room.state.selectedTheme as ThemeType);
+      if (state.selectedTheme) {
+        store.setSelectedTheme(state.selectedTheme as ThemeType);
       }
-      if (room.state.hostSessionId) {
-        const isLocalHost = room.state.hostSessionId === room.sessionId;
+      if (state.hostSessionId) {
+        const isLocalHost = state.hostSessionId === room.sessionId;
         if (isLocalHost !== store.isHost) {
           useGameStore.setState({ isHost: isLocalHost });
         }
+      }
+
+      // Sync players map
+      if (state.players) {
+        const currentPlayers: Record<string, IPlayer> = {};
+
+        if (typeof state.players.forEach === 'function') {
+          state.players.forEach((player: any, sessionId: string) => {
+            currentPlayers[sessionId] = {
+              id: sessionId,
+              name: player.name || 'Operator',
+              isHost: player.isHost || false,
+              ready: player.ready ?? true,
+              characterClass: player.characterClass || 'VANGUARD',
+              x: player.x ?? 0,
+              y: player.y ?? 1.0,
+              z: player.z ?? 0,
+              rotX: player.rotX ?? 0,
+              rotY: player.rotY ?? 0,
+              colorIndex: player.colorIndex ?? 0,
+              ping: player.ping ?? 0,
+              health: player.health ?? 100,
+              maxHealth: player.maxHealth ?? 100,
+              kills: player.kills ?? 0,
+              deaths: player.deaths ?? 0,
+              isDead: player.isDead ?? false,
+              isShielded: player.isShielded ?? false,
+              lastShotTime: player.lastShotTime ?? 0,
+            };
+          });
+        } else if (typeof state.players === 'object') {
+          Object.entries(state.players).forEach(([sessionId, player]: [string, any]) => {
+            currentPlayers[sessionId] = {
+              id: sessionId,
+              name: player.name || 'Operator',
+              isHost: player.isHost || false,
+              ready: player.ready ?? true,
+              characterClass: player.characterClass || 'VANGUARD',
+              x: player.x ?? 0,
+              y: player.y ?? 1.0,
+              z: player.z ?? 0,
+              rotX: player.rotX ?? 0,
+              rotY: player.rotY ?? 0,
+              colorIndex: player.colorIndex ?? 0,
+              ping: player.ping ?? 0,
+              health: player.health ?? 100,
+              maxHealth: player.maxHealth ?? 100,
+              kills: player.kills ?? 0,
+              deaths: player.deaths ?? 0,
+              isDead: player.isDead ?? false,
+              isShielded: player.isShielded ?? false,
+              lastShotTime: player.lastShotTime ?? 0,
+            };
+          });
+        }
+
+        store.setPlayers(currentPlayers);
       }
     });
 

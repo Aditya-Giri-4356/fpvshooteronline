@@ -10,6 +10,7 @@ import { activeRoomCodes, isValidRoomCode } from './utils/roomCode';
 dotenv.config();
 
 const PORT = Number(process.env.PORT || 2567);
+const HOST = '0.0.0.0';
 const app = express();
 
 app.use(cors({
@@ -19,7 +20,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Express Matchmaker Route for Colyseus Client Compatibility (Supports Colyseus 0.15, 0.16, 0.17)
+// Express Matchmaker Route for Colyseus Client Compatibility
 app.post('/matchmake/:method/:roomName?', async (req: Request, res: Response) => {
   const method = req.params.method as any;
   const roomNameParam = Array.isArray(req.params.roomName) ? req.params.roomName[0] : req.params.roomName;
@@ -28,7 +29,6 @@ app.post('/matchmake/:method/:roomName?', async (req: Request, res: Response) =>
 
   try {
     const result = await matchMaker.controller.invokeMethod(method, roomName, clientOptions);
-    // Return both top-level and nested .room fields for 100% client version compatibility
     return res.status(200).json({
       room: result,
       ...result,
@@ -133,12 +133,12 @@ gameServer
   .define('game_room', GameRoom)
   .filterBy(['roomCode']);
 
-// Start listening
-httpServer.listen(PORT, () => {
+// Start listening explicitly on 0.0.0.0 for containerized environments
+httpServer.listen(PORT, HOST, () => {
   console.log(`\n=================================================`);
   console.log(`  🎯 FPS Multiplayer Server running`);
-  console.log(`  🌐 HTTP & WebSocket Port: ${PORT}`);
-  console.log(`  🩺 Health Check: http://localhost:${PORT}/health`);
+  console.log(`  🌐 HTTP & WebSocket: http://${HOST}:${PORT}`);
+  console.log(`  🩺 Health Check: http://${HOST}:${PORT}/health`);
   console.log(`  🎮 Room Handler: 'game_room' (filterBy: roomCode)`);
   console.log(`=================================================\n`);
 
