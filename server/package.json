@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "npm --prefix ../shared run build && (cd ../client && npm install && npm run build) && tsc",
+    "build:server-only": "tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {

@@ -3,6 +3,7 @@
 
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -24,11 +25,27 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ─── Serve the built Vite client in production ───
-// In production (Render), the client is pre-built into ../client/dist
-// relative to the server's dist/ output directory.
-const clientDistPath = path.resolve(__dirname, '../../client/dist');
-app.use(express.static(clientDistPath));
+// ─── Resolve the built Vite client in production ───
+function getClientDistPath(): string {
+  const candidatePaths = [
+    path.resolve(__dirname, '../../client/dist'),
+    path.resolve(__dirname, '../client/dist'),
+    path.resolve(process.cwd(), 'client/dist'),
+    path.resolve(process.cwd(), '../client/dist'),
+  ];
+  for (const candidate of candidatePaths) {
+    if (fs.existsSync(candidate) && fs.existsSync(path.join(candidate, 'index.html'))) {
+      return candidate;
+    }
+  }
+  // Default to standard monorepo relative path
+  return candidatePaths[0];
+}
+
+const clientDistPath = getClientDistPath();
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+}
 
 // Express Matchmaker Route for Colyseus Client Compatibility
 app.post('/matchmake/:method/:roomName?', async (req: Request, res: Response) => {
@@ -120,7 +137,41 @@ app.get('/api/rooms/:code', async (req: Request, res: Response) => {
 // ─── SPA Catch-All: serve index.html for any non-API route ───
 // This MUST come after all API routes so /ping, /health, /api/* still work.
 app.get('*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(clientDistPath, 'index.html'));
+  const activeDistPath = getClientDistPath();
+  const indexPath = path.join(activeDistPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath, (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).send('Error delivering game client.');
+      }
+    });
+  }
+
+  // Graceful fallback status UI if client assets have not been built yet
+  return res.status(200).send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>FPS Multiplayer Server</title>
+      <style>
+        body { background: #0b0f19; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #131b2e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 32px; max-width: 480px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        h1 { color: #38bdf8; margin: 0 0 12px 0; font-size: 24px; }
+        p { color: #94a3b8; font-size: 14px; line-height: 1.5; margin: 8px 0; }
+        .badge { display: inline-block; background: #065f46; color: #34d399; font-size: 12px; padding: 4px 12px; border-radius: 9999px; font-weight: 600; margin-bottom: 16px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="badge">SERVER ONLINE</div>
+        <h1>FPS Multiplayer Engine</h1>
+        <p>Backend WebSocket Matchmaker is live and healthy.</p>
+        <p style="font-size: 12px; color: #64748b;">Client build assets will appear automatically once deployed.</p>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 // Create HTTP server
