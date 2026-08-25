@@ -2,6 +2,7 @@
 (Symbol as any).metadata ??= Symbol('metadata');
 
 import http from 'http';
+import path from 'path';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -22,6 +23,12 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// ─── Serve the built Vite client in production ───
+// In production (Render), the client is pre-built into ../client/dist
+// relative to the server's dist/ output directory.
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+app.use(express.static(clientDistPath));
 
 // Express Matchmaker Route for Colyseus Client Compatibility
 app.post('/matchmake/:method/:roomName?', async (req: Request, res: Response) => {
@@ -57,17 +64,6 @@ app.get('/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     activeRoomCount: activeRoomCodes.size,
-  });
-});
-
-// Root informative endpoint
-app.get('/', (_req: Request, res: Response) => {
-  res.json({
-    name: 'FPS Multiplayer Server',
-    version: '1.0.0',
-    status: 'running',
-    health: '/health',
-    activeRooms: activeRoomCodes.size,
   });
 });
 
@@ -121,6 +117,12 @@ app.get('/api/rooms/:code', async (req: Request, res: Response) => {
   }
 });
 
+// ─── SPA Catch-All: serve index.html for any non-API route ───
+// This MUST come after all API routes so /ping, /health, /api/* still work.
+app.get('*', (_req: Request, res: Response) => {
+  res.sendFile(path.join(clientDistPath, 'index.html'));
+});
+
 // Create HTTP server
 const httpServer = http.createServer(app);
 
@@ -139,10 +141,11 @@ gameServer
 // Start listening explicitly on 0.0.0.0 for containerized environments
 httpServer.listen(PORT, HOST, () => {
   console.log(`\n=================================================`);
-  console.log(`  🎯 FPS Multiplayer Server running`);
-  console.log(`  🌐 HTTP & WebSocket: http://${HOST}:${PORT}`);
+  console.log(`  🎯 FPS Multiplayer Server (AIO) running`);
+  console.log(`  🌐 Game + API + WebSocket: http://${HOST}:${PORT}`);
   console.log(`  🩺 Health Check: http://${HOST}:${PORT}/health`);
   console.log(`  🎮 Room Handler: 'game_room' (filterBy: roomCode)`);
+  console.log(`  📁 Serving client from: ${clientDistPath}`);
   console.log(`=================================================\n`);
 
   // Automatic Self-Ping Keep-Alive Loop for Render
@@ -172,3 +175,4 @@ const handleShutdown = () => {
 
 process.on('SIGINT', handleShutdown);
 process.on('SIGTERM', handleShutdown);
+

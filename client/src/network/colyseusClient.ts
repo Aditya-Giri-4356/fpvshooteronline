@@ -14,19 +14,27 @@ import { useGameStore } from '../game/useGameStore';
 import { soundFX } from '../audio/SoundFX';
 
 export function getRawServerUrl(): string {
+  // 1. User-overridden URL from settings
   if (typeof window !== 'undefined') {
     const customUrl = localStorage.getItem('FPS_CUSTOM_SERVER_URL');
     if (customUrl && customUrl.trim()) return customUrl.trim();
   }
 
+  // 2. Build-time env var
   const envUrl = import.meta.env.VITE_SERVER_URL;
   if (envUrl && envUrl.trim()) return envUrl.trim();
 
+  // 3. Local dev: always point to the local Colyseus server
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     return 'http://localhost:2567';
   }
 
-  return '';
+  // 4. AIO Production: the server and client share the same origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+
+  return 'https://fpvshooteronline.onrender.com';
 }
 
 export function setCustomServerUrl(url: string) {
@@ -42,12 +50,6 @@ export function setCustomServerUrl(url: string) {
 
 export function getServerUrl(): { httpUrl: string; wsUrl: string } {
   let base = getRawServerUrl();
-
-  if (!base) {
-    base = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-      ? 'http://localhost:2567'
-      : 'https://fpvshooteronline.onrender.com';
-  }
 
   base = base.replace(/\/$/, '');
 

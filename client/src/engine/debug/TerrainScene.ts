@@ -8,26 +8,20 @@
  */
 
 import { BOOKMARKS, installBookmarks } from './Bookmarks';
-import { Froxels } from '../gpu/passes/Froxels';
-import { PARTICLE_COUNT, Particles } from '../gpu/passes/Particles';
-import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { buildCanopyMap, runScatter } from '../gpu/passes/Scatter';
 import { addScatterDebug } from './ScatterDebug';
 import { Forests } from '../vegetation/Forests';
 import { GroundRing } from '../vegetation/GroundRing';
 import { buildVegLibrary } from '../vegetation/VegLibrary';
-import { CausticsBake, setCausticContext } from '../render/Caustics';
 import { setWindContext, windU } from '../render/Wind';
-import { sunU, updateSunUniforms } from '../render/VegMaterials';
+import { updateSunUniforms } from '../render/VegMaterials';
 import { buildCanopyShell } from '../world/CanopyShell';
 import { Heightfield } from '../world/Heightfield';
 import { buildTerrainShadowProxy } from '../world/ShadowProxy';
 import { TerrainTiles } from '../world/TerrainTiles';
 import { WaterSurface } from '../world/WaterSurface';
 import { WORLD_SCALE } from '../world/WorldConst';
-import { PostStack } from '../render/PostStack';
 import { setupSunShadows } from '../render/ShadowSetup';
-import { Clouds } from '../sky/Clouds';
 import { SunSky } from '../sky/SunSky';
 import type { WorldContext } from './Scenes';
 
@@ -78,28 +72,10 @@ export async function buildTerrainScene(ctx: WorldContext): Promise<void> {
     (new URLSearchParams(window.location.search).get('ablate') ?? '').split(','),
   );
 
-  // irradiance probe field (Phase 3 GI; canopy-aware since Phase 5 —
-  // ?ablate=canopygi rebuilds the bare-heightfield field for A/B)
-  ctx.progress(0.95, 'gi: gathering irradiance probes');
-  const gi = new ProbeGI(
-    hf,
-    sunSky.atmosphere,
-    ablate.has('canopygi') ? null : canopyTex,
-  );
-  await gi.init(engine.renderer);
-  sunSky.dimAmbientForGI();
-  engine.onUpdate(() => gi.tick(engine.renderer));
+  // OPTIMIZED: Removed ProbeGI (Global Illumination) to save performance
+  const gi: any = undefined;
 
-  // Phase 6 caustics: per-frame analytic bake + module context — MUST be
-  // set before any material factory runs (terrain tiles, rocks, debris all
-  // self-apply at build time). ?ablate=caustics to A/B, ?caustk=N to tune.
-  if (!ablate.has('caustics')) {
-    const bake = new CausticsBake();
-    const ck = Number(new URLSearchParams(window.location.search).get('caustk') ?? NaN);
-    if (Number.isFinite(ck)) bake.focusK.value = ck;
-    setCausticContext({ hf, bake, sunDir: sunU.dir });
-    engine.onUpdate(() => bake.update(engine.renderer));
-  }
+  // OPTIMIZED: Removed Caustics Bake
 
   // Phase 6 wind: global gust field for all vegetation (?wind=N strength,
   // ?winddir=deg, ?ablate=wind to A/B) — context before veg materials build
@@ -193,22 +169,10 @@ export async function buildTerrainScene(ctx: WorldContext): Promise<void> {
     }
   }
 
-  // volumetric clouds (noise bake + sun-shadow map)
-  ctx.progress(0.97, 'sky: baking cloud noise');
-  const clouds = new Clouds(sunSky.atmosphere);
-  await clouds.init(engine.renderer);
-  // weather motion (Pillar F): drift on WORLD time so ?freeze=1 shots stay
-  // deterministic; the drifted shadow map re-bakes itself every ~2.5 s
-  let lastWt = 0;
-  engine.onUpdate((_dt, wt) => {
-    clouds.tick(engine.renderer, wt - lastWt);
-    lastWt = wt;
-  });
+  // OPTIMIZED: Removed Volumetric Clouds
 
-  // 4-cascade CSM + PCSS contact hardening; cloud shadows gate the sun term
-  const shadowRig = setupSunShadows(sunSky.sun, engine.camera, (wxz) =>
-    clouds.shadowAt(wxz),
-  );
+  // OPTIMIZED: Simplified shadows (no cloud shadow gating)
+  const shadowRig = setupSunShadows(sunSky.sun, engine.camera);
   // cascade cameras drive the per-cascade caster cull in Forests
   forestsRef?.setCSM(shadowRig.csm ?? null);
   (window as unknown as { __laasDbg?: Record<string, unknown> }).__laasDbg = {
@@ -217,41 +181,20 @@ export async function buildTerrainScene(ctx: WorldContext): Promise<void> {
     shadowRig,
   };
 
-  // GPU particles: snow/pollen/leaves riding the wind (?ablate=particles)
-  if (view !== 'split' && !ablate.has('particles')) {
-    const parts = new Particles(hf, canopyTex, ablate.has('gi') ? null : gi);
-    engine.scene.add(parts.mesh);
-    engine.onUpdate((dt) => parts.update(engine.renderer, engine.camera, dt));
-    engine.stats.counters['particles'] = PARTICLE_COUNT;
-  }
+  // OPTIMIZED: Removed GPU Particles
 
-  // froxel volumetrics: canopy shafts + valley fog (?ablate=froxels, ?fog=N)
-  let froxels: Froxels | null = null;
-  if (!ablate.has('froxels')) {
-    froxels = new Froxels(hf, sunSky.atmosphere, canopyTex, clouds);
-    const fq = Number(new URLSearchParams(window.location.search).get('fog') ?? NaN);
-    if (Number.isFinite(fq)) froxels.fogK.value = fq;
-    const fx = froxels;
-    engine.onUpdate(() => fx.update(engine.renderer, engine.camera));
-  }
+  // OPTIMIZED: Removed Froxel Volumetric Fog
 
-  // HDR post stack: aerial perspective, clouds, GTAO, TRAA, bloom, exposure, grade
-  ctx.progress(0.98, 'post: building pipeline');
-  const post = new PostStack(engine, sunSky.atmosphere, bootTod, clouds, froxels);
-  engine.post = post;
+  // OPTIMIZED: Removed heavy PostStack (GTAO, TRAA, Bloom)
 
   ctx.hooks.setTimeOfDay = (t: number) => {
     void (async () => {
       await sunSky.setTimeOfDay(t);
-      await clouds.refreshShadow(engine.renderer);
-      gi.invalidate();
-      post.setTimeOfDay(t);
     })();
   };
   window.addEventListener('keydown', (e) => {
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
-      void clouds.refreshShadow(engine.renderer);
-      post.setTimeOfDay(sunSky.timeOfDay);
+      // time of day changed
     }
   });
 

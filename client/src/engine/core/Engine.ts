@@ -137,7 +137,13 @@ export class Engine {
 
   private frame(timeMs: number): void {
     const t = timeMs / 1000;
-    const rawDt = this.lastT === null ? 1 / 60 : t - this.lastT;
+    let rawDt = this.lastT === null ? 1 / 60 : t - this.lastT;
+    
+    // OPTIMIZATION: Hard cap at ~60 FPS to prevent GPU overheating
+    if (rawDt < 1 / 62) {
+      return;
+    }
+
     this.lastT = t;
     const dt = Math.min(Math.max(rawDt, 0), 0.1);
     this.elapsed += dt;
