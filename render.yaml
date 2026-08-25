@@ -8,13 +8,16 @@ services:
     runtime: node
     plan: free
     region: oregon
-    # Build: shared → client (Vite) → server (tsc)
+    # Build: shared → client (Vite + tsc needs devDeps) → server (tsc)
+    # NODE_ENV must NOT be "production" during build or npm skips devDependencies
     buildCommand: >-
+      export NODE_ENV=development &&
       npm --prefix shared install && npm --prefix shared run build &&
       npm --prefix client install && npm --prefix client run build &&
-      npm --prefix server install && npm --prefix server run build
+      npm --prefix server install && npm --prefix server run build:server-only
     startCommand: npm --prefix server run start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
+
